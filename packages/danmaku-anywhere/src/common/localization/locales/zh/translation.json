@@ -194,6 +194,7 @@
       "collapsed_other": "已折叠：{{label}} ×{{count}}",
       "collapseHead_other": "折叠头：{{label}} ×{{count}}",
       "duplicate": "重复",
+      "density": "密度筛除",
       "whitelist": "白名单"
     },
     "enable": "显示弹幕",
