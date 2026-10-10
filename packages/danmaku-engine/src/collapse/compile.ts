@@ -27,10 +27,10 @@ export interface CompileConfig {
   /** Sliding-window duration for a collapse head (≈ time a danmaku stays on screen). */
   stageDurationSec: number
   /** User-selected soft visual-density preference from 0 (sparse) to 100 (keep all). */
-  density: number
-  fontSize: number
-  /** Fraction of the video height used for danmaku, expressed from 0 to 1. */
-  areaRatio: number
+  density?: number
+  fontSize?: number
+  /** Fraction of the total video area used for danmaku, expressed from 0 to 1. */
+  areaRatio?: number
 }
 
 /** Pure static pass over the time-sorted comment list. */
@@ -183,10 +183,10 @@ export function compile(
   }
   const densityDrops = selectDensityDrops(
     densityCandidates,
-    config.density,
+    config.density ?? 100,
     config.stageDurationSec,
-    config.fontSize,
-    config.areaRatio
+    config.fontSize ?? 25,
+    config.areaRatio ?? 0.8
   )
   for (const index of densityDrops) {
     decisions[index] = { kind: 'density' }
