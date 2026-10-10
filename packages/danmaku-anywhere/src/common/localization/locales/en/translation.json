@@ -201,6 +201,7 @@
       "collapseHead_one": "Collapse head: {{label}} ×{{count}}",
       "collapseHead_other": "Collapse head: {{label}} ×{{count}}",
       "duplicate": "Duplicate",
+      "density": "Density filtered",
       "whitelist": "White list"
     },
     "enable": "Show Danmaku",
