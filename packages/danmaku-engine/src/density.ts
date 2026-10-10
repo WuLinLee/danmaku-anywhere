@@ -137,7 +137,7 @@ export function selectDensityDrops(
     // turns the filter on or off.
     // Give the low end an additional smooth boost; 0 targets roughly half
     // as many survivors as the previous low-end curve in a crowded burst.
-    const lowDensityBoost = 1 + 0.22 * Math.pow(1 - level / 100, 1.5)
+    const lowDensityBoost = 1 + 0.3 * Math.pow(1 - level / 100, 1.5)
     const dropChance = clamp(
       pressure * (1.08 - priority * 0.5) * lowDensityBoost,
       0,

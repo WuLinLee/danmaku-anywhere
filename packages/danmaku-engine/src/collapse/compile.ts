@@ -106,7 +106,7 @@ export function compile(
       const m = findMatchingPattern(item.text, compiledPatterns)
       if (m) {
         key = `p:${m.pattern.label}`
-        label = m.pattern.label
+        label = item.text
       } else if (autoCollapse) {
         key = `a:${item.mode ?? 'rtl'}:${normalizeDanmakuText(item.text)}`
         label = item.text
