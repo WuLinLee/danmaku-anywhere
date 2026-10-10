@@ -179,7 +179,9 @@ export class DanmakuRenderer {
     const densityContextChanged =
       prevConfig.style.fontSize !== this.config.style.fontSize ||
       prevConfig.area.yStart !== this.config.area.yStart ||
-      prevConfig.area.yEnd !== this.config.area.yEnd
+      prevConfig.area.yEnd !== this.config.area.yEnd ||
+      prevConfig.area.xStart !== this.config.area.xStart ||
+      prevConfig.area.xEnd !== this.config.area.xEnd
 
     if (
       collapseChanged ||
@@ -207,7 +209,9 @@ export class DanmakuRenderer {
       stageDurationSec,
       density: this.config.density,
       fontSize: this.config.style.fontSize,
-      areaRatio: (this.config.area.yEnd - this.config.area.yStart) / 100,
+      areaRatio:
+        ((this.config.area.yEnd - this.config.area.yStart) / 100) *
+        ((this.config.area.xEnd - this.config.area.xStart) / 100),
     })
     replaceInPlace(this.decisions, result.decisions)
     replaceInPlace(this.bumpEvents, result.bumpEvents)
