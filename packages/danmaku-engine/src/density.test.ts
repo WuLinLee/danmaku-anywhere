@@ -20,6 +20,8 @@ describe('adaptive danmaku density', () => {
   it('normalizes common repeated-character variants for collapse grouping', () => {
     expect(normalizeDanmakuText('哈哈哈哈')).toBe(normalizeDanmakuText('哈哈哈'))
     expect(normalizeDanmakuText('２３３３３３')).toBe(normalizeDanmakuText('233'))
+    expect(normalizeDanmakuText('哈哈哈哈！')).toBe(normalizeDanmakuText('哈 哈 哈？'))
+    expect(normalizeDanmakuText('Hello, World!')).toBe(normalizeDanmakuText('hello world'))
   })
 
   it('keeps all candidates at density 100', () => {
@@ -48,6 +50,14 @@ describe('adaptive danmaku density', () => {
     const high = selectDensityDrops(comments, 85, 5, 25, 0.8)
     expect(low.size).toBeGreaterThan(high.size)
     expect(low.size).toBeGreaterThan(0)
+  })
+
+  it('makes density zero dramatically sparser during a dense burst', () => {
+    const comments = Array.from({ length: 100 }, (_, i) =>
+      candidate(i, i * 0.05, `distinct comment number ${i}`)
+    )
+    const drops = selectDensityDrops(comments, 0, 5, 25, 0.8)
+    expect(drops.size).toBeGreaterThan(70)
   })
 
   it('keeps whitelisted or collapsed representatives while counting their load', () => {

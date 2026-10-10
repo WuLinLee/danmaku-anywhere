@@ -28,7 +28,10 @@ const clamp = (value: number, min: number, max: number) =>
 export function normalizeDanmakuText(raw: string): string {
   const text = (raw ?? '').normalize('NFKC').trim().toLocaleLowerCase()
   if (!text) return ''
-  return text.replace(/(.)\1{2,}/gu, '$1$1')
+  // Ignore spaces and punctuation variations before compressing repeated runs.
+  const compact = text.replace(/[\s\p{P}]+/gu, '')
+  const normalized = (compact || text).replace(/(.)\1{2,}/gu, '$1$1')
+  return normalized || text.replace(/(.)\1{2,}/gu, '$1$1')
 }
 
 function visualCost(comment: DensityCandidate, fontSize: number): number {
@@ -109,7 +112,10 @@ export function selectDensityDrops(
   // Higher slider values permit greater visual load. This is a weighted load
   // budget, not a limit on how many comments can fit on screen.
   const areaFactor = clamp(areaRatio / 0.8, 0.4, 1.3)
-  const budget = (8 + Math.pow(level / 100, 1.4) * 42) * areaFactor
+  const baseBudget = (8 + Math.pow(level / 100, 1.4) * 42) * areaFactor
+  // At zero, use half the previous load budget. This keeps sparse stretches
+  // untouched while thinning dense bursts much more strongly.
+  const budget = baseBudget * (0.5 + 0.5 * (level / 100))
 
   for (let i = 0; i < sorted.length; i++) {
     const current = sorted[i]
@@ -129,7 +135,14 @@ export function selectDensityDrops(
     // Distinctive comments are somewhat more likely to survive than repeated
     // characters or punctuation-only spam, while no single threshold abruptly
     // turns the filter on or off.
-    const dropChance = clamp(pressure * (1.08 - priority * 0.5), 0, 0.96)
+    // Give the low end an additional smooth boost; 0 targets roughly half
+    // as many survivors as the previous low-end curve in a crowded burst.
+    const lowDensityBoost = 1 + 0.22 * Math.pow(1 - level / 100, 1.5)
+    const dropChance = clamp(
+      pressure * (1.08 - priority * 0.5) * lowDensityBoost,
+      0,
+      0.98
+    )
     const stableRoll = stableUnitHash(
       `${Math.round(current.time * 1000)}|${current.mode}|${current.text}|${current.index}`
     )
