@@ -85,9 +85,11 @@ export const FloatingButton = forwardRef<
           )
         } catch (error) {
           toast.error(
-            t('common.restoreDefaultsFailed', 'Failed to restore defaults: {{message}}', {
-              message: serializeError(error).message,
-            })
+            t(
+              'common.restoreDefaultsFailed',
+              'Failed to restore defaults: {{message}}',
+              { message: serializeError(error).message }
+            )
           )
           throw error
         }
@@ -174,7 +176,7 @@ export const FloatingButton = forwardRef<
                     touchAction: 'none',
                   }}
                 >
-<Stack direction="row" alignItems="center" spacing={1}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
                     <Badge
                       color="warning"
                       variant="dot"
