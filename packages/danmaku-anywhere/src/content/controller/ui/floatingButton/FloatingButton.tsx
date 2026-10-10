@@ -176,7 +176,7 @@ export const FloatingButton = forwardRef<
                     touchAction: 'none',
                   }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={1}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                     <Badge
                       color="warning"
                       variant="dot"
