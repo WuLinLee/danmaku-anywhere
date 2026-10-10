@@ -1,0 +1,134 @@
+name: Weekly Upstream Sync and Smart Density Release
+
+on:
+  schedule:
+    - cron: '17 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-upstream-smart-density
+  cancel-in-progress: false
+
+jobs:
+  sync-build-release:
+    runs-on: ubuntu-latest
+    env:
+      VITE_PROXY_URL: ${{ vars.VITE_PROXY_URL || 'https://api.danmaku-staging.weeblify.app' }}
+      VITE_PROXY_ORIGIN: ${{ vars.VITE_PROXY_ORIGIN || 'https://danmaku.weeblify.app' }}
+      VERSION_SUFFIX: ${{ github.run_number }}
+    steps:
+      - name: Check out the patch branch
+        uses: actions/checkout@v4
+        with:
+          ref: smart-danmaku-density
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure bot identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch official upstream
+        run: |
+          git remote add upstream https://github.com/Mr-Quin/danmaku-anywhere.git
+          git fetch upstream master
+
+      - name: Merge latest official master into the patch branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="$(git rev-parse HEAD)"
+          # Keep custom patch hunks when upstream changes touch the same lines.
+          git merge --no-edit -X ours upstream/master
+          after="$(git rev-parse HEAD)"
+          if [ "$before" != "$after" ]; then
+            git push origin HEAD:smart-danmaku-density
+            echo "Merged latest official upstream into smart-danmaku-density."
+          else
+            echo "Patch branch is already up to date with official master."
+          fi
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages
+        run: pnpm build:packages
+
+      - name: Test density algorithm
+        run: pnpm --filter @danmaku-anywhere/danmaku-engine test
+
+      - name: Type-check extension
+        run: pnpm --filter @mr-quin/danmaku-anywhere type-check
+
+      - name: Build and package Chrome extension
+        working-directory: packages/danmaku-anywhere
+        run: |
+          pnpm build
+          pnpm package
+
+      - name: Prepare a stable Release filename
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_zip="$(find packages/danmaku-anywhere/package -maxdepth 1 -type f -name '*-chrome.zip' -print -quit)"
+          test -n "$source_zip"
+          mkdir -p release-assets
+          cp "$source_zip" release-assets/smart-danmaku-density-chrome.zip
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-danmaku-density-chrome
+          path: release-assets/smart-danmaku-density-chrome.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Point the single preview tag at this build
+        run: |
+          set -euo pipefail
+          git tag -f smart-danmaku-density-preview "$(git rev-parse HEAD)"
+          git push origin refs/tags/smart-danmaku-density-preview --force
+
+      - name: Publish or update the single GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: smart-danmaku-density-preview
+          name: Smart Danmaku Density Preview
+          body: |
+            Weekly automated preview build.
+
+            This release is rebuilt from the latest official upstream master with
+            the smart density patch merged on top. Only the newest ZIP is retained.
+          prerelease: true
+          draft: false
+          make_latest: false
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: release-assets/smart-danmaku-density-chrome.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove any older or differently named assets from this Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r asset; do
+            [ -n "$asset" ] || continue
+            [ "$asset" = "smart-danmaku-density-chrome.zip" ] && continue
+            gh release delete-asset smart-danmaku-density-preview "$asset" --yes
+          done < <(gh release view smart-danmaku-density-preview --json assets --jq '.assets[].name')
