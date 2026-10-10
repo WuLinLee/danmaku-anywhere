@@ -172,6 +172,7 @@ export const bindVideo =
       switch (decision.kind) {
         case 'block':
         case 'dedupe':
+        case 'density':
         case 'absorbed':
           return
         case 'head':

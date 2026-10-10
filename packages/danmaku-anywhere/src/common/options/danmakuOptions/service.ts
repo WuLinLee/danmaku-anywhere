@@ -143,6 +143,15 @@ export class DanmakuOptionsService implements IStoreService {
           })
         },
       })
+      .version(11, {
+        upgrade: (data) => {
+          return produce<PrevOptions>(data, (draft) => {
+            // Retire the user-facing hard cap in favor of adaptive visual density.
+            draft.density = 50
+            draft.maxOnScreen = 500
+          })
+        },
+      })
   }
 
   async get() {

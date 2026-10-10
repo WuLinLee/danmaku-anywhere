@@ -26,7 +26,11 @@ export interface DanmakuOptions {
   readonly filters: DanmakuFilter[]
   readonly distribution: 'random' | 'order'
   /**
-   * The maximum number of comments to show on the screen at the same time
+   * Adaptive visible-load preference: 0 favors a clear screen, 100 keeps all comments.
+   */
+  readonly density: number
+  /**
+   * Internal emergency guard for renderer safety; user-facing density is controlled by density.
    */
   readonly maxOnScreen: number
   /**
@@ -78,6 +82,7 @@ export const DEFAULT_DANMAKU_OPTIONS: DanmakuOptions = {
   filters: [],
   speed: 1,
   interval: 500,
+  density: 50,
   maxOnScreen: 500,
   trackLimit: -1,
   style: {

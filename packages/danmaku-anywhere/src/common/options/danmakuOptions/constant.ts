@@ -61,6 +61,7 @@ export const defaultDanmakuOptions: DanmakuOptions = {
   occlusionConfidence: 0.5,
   occlusionEdgeSoftness: 1,
   occlusionQuality: 'medium',
+  density: 50,
   maxOnScreen: 500,
   interval: 200,
   trackLimit: 32,

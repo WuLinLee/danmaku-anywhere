@@ -1,4 +1,5 @@
 import type { DanmakuFilter } from '../options'
+import { normalizeDanmakuText, selectDensityDrops, type DensityCandidate } from '../density'
 import {
   compilePatterns,
   compileRules,
@@ -17,6 +18,7 @@ import type {
 export interface CompileInput {
   text: string
   time: number
+  mode?: 'ltr' | 'rtl' | 'top' | 'bottom'
 }
 
 export interface CompileConfig {
@@ -24,6 +26,11 @@ export interface CompileConfig {
   collapse: CollapseConfig
   /** Sliding-window duration for a collapse head (≈ time a danmaku stays on screen). */
   stageDurationSec: number
+  /** User-selected soft visual-density preference from 0 (sparse) to 100 (keep all). */
+  density: number
+  fontSize: number
+  /** Fraction of the video height used for danmaku, expressed from 0 to 1. */
+  areaRatio: number
 }
 
 /** Pure static pass over the time-sorted comment list. */
@@ -101,7 +108,7 @@ export function compile(
         key = `p:${m.pattern.label}`
         label = m.pattern.label
       } else if (autoCollapse) {
-        key = `a:${item.text}`
+        key = `a:${item.mode ?? 'rtl'}:${normalizeDanmakuText(item.text)}`
         label = item.text
         auto = true
       }
@@ -153,6 +160,36 @@ export function compile(
       bumpEvents.push(event)
       headBumps.push(event)
     }
+  }
+
+  // Adaptive density runs after dedupe/collapse. A collapsed representative and
+  // whitelisted comments still contribute to pressure but remain protected.
+  const densityCandidates: DensityCandidate[] = []
+  for (let i = 0; i < items.length; i++) {
+    const decision = decisions[i]
+    if (
+      decision?.kind === 'normal' ||
+      decision?.kind === 'head' ||
+      decision?.kind === 'whitelist'
+    ) {
+      densityCandidates.push({
+        index: i,
+        time: items[i].time,
+        text: items[i].text,
+        mode: items[i].mode ?? 'rtl',
+        protected: decision.kind !== 'normal',
+      })
+    }
+  }
+  const densityDrops = selectDensityDrops(
+    densityCandidates,
+    config.density,
+    config.stageDurationSec,
+    config.fontSize,
+    config.areaRatio
+  )
+  for (const index of densityDrops) {
+    decisions[index] = { kind: 'density' }
   }
 
   bumpEvents.sort((a, b) => a.atSec - b.atSec)

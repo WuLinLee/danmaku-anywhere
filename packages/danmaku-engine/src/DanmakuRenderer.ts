@@ -175,8 +175,19 @@ export class DanmakuRenderer {
     )
     const filtersChanged = !deepEqual(prevConfig.filters, this.config.filters)
     const speedChanged = prevConfig.speed !== this.config.speed
+    const densityChanged = prevConfig.density !== this.config.density
+    const densityContextChanged =
+      prevConfig.style.fontSize !== this.config.style.fontSize ||
+      prevConfig.area.yStart !== this.config.area.yStart ||
+      prevConfig.area.yEnd !== this.config.area.yEnd
 
-    if (collapseChanged || filtersChanged || speedChanged) {
+    if (
+      collapseChanged ||
+      filtersChanged ||
+      speedChanged ||
+      densityChanged ||
+      densityContextChanged
+    ) {
       this.runCompile()
     }
     if (!deepEqual(prevConfig.area, this.config.area)) {
@@ -194,6 +205,9 @@ export class DanmakuRenderer {
       filters: this.config.filters,
       collapse: this.config.collapse,
       stageDurationSec,
+      density: this.config.density,
+      fontSize: this.config.style.fontSize,
+      areaRatio: (this.config.area.yEnd - this.config.area.yStart) / 100,
     })
     replaceInPlace(this.decisions, result.decisions)
     replaceInPlace(this.bumpEvents, result.bumpEvents)

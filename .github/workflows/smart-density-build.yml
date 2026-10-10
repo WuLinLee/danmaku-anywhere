@@ -1,0 +1,56 @@
+name: Smart Danmaku Density Build
+
+on:
+  push:
+    branches:
+      - smart-danmaku-density
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-chrome:
+    runs-on: ubuntu-latest
+    env:
+      VITE_PROXY_URL: ${{ vars.VITE_PROXY_URL || 'https://api.danmaku-staging.weeblify.app' }}
+      VITE_PROXY_ORIGIN: ${{ vars.VITE_PROXY_ORIGIN || 'https://danmaku.weeblify.app' }}
+      VERSION_SUFFIX: ${{ github.run_number }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages
+        run: pnpm build:packages
+
+      - name: Test density algorithm
+        run: pnpm --filter @danmaku-anywhere/danmaku-engine test
+
+      - name: Type-check extension
+        run: pnpm --filter @mr-quin/danmaku-anywhere type-check
+
+      - name: Build and package Chrome extension
+        working-directory: packages/danmaku-anywhere
+        run: |
+          pnpm build
+          pnpm package
+
+      - name: Upload installable extension ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-danmaku-density-chrome
+          path: packages/danmaku-anywhere/package/*-chrome.zip
+          if-no-files-found: error
+          retention-days: 14

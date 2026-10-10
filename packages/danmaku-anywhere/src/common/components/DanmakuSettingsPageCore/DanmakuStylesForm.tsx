@@ -54,14 +54,18 @@ const fontSizeMarks = [
   },
 ]
 
-const maxOnScreenMarks = [
+const densityMarks = [
   {
     value: 0,
     label: '0',
   },
   {
-    value: 1000,
-    label: '1000',
+    value: 50,
+    label: '50',
+  },
+  {
+    value: 100,
+    label: '100',
   },
 ]
 
@@ -514,24 +518,26 @@ export const DanmakuStylesForm = ({
             )}
           />
           <Controller
-            name="maxOnScreen"
+            name="density"
             control={control}
             render={({ field }) => (
               <LabeledSlider
-                label={t('stylePage.maxOnScreen', 'Maximum Limit')}
+                label={t('stylePage.density', 'Smart Danmaku Density')}
                 tooltip={t(
-                  'stylePage.tooltip.maxOnScreen',
-                  'The maximum number of danmaku that can be displayed on the screen at the same time.'
+                  'stylePage.tooltip.density',
+                  'Lower values prefer a clearer picture; higher values preserve more comments. Filtering only becomes stronger in crowded moments, with no delayed catch-up.'
                 )}
                 value={field.value}
                 onChange={(_e, newValue) => field.onChange(newValue as number)}
                 step={1}
                 min={0}
-                max={1000}
-                marks={maxOnScreenMarks}
+                max={100}
+                marks={densityMarks}
                 size="small"
                 valueLabelDisplay="auto"
               />
+            )}
+          />
             )}
           />
           <Controller

@@ -54,6 +54,7 @@ export type Decision =
   | { kind: 'block' }
   | { kind: 'whitelist' }
   | { kind: 'dedupe' }
+  | { kind: 'density' }
   | { kind: 'normal' }
   | {
       kind: 'absorbed'

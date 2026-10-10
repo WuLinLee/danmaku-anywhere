@@ -802,7 +802,7 @@
     "distribution": "Distribution",
     "font": "Font",
     "interval": "Emission Interval",
-    "maxOnScreen": "Maximum Limit",
+    "density": "Smart Danmaku Density",
     "name": "Danmaku Settings",
     "occlusion": "Render behind people",
     "occlusionConfidence": "Confidence threshold",
@@ -859,7 +859,7 @@
     "tooltip": {
       "distribution": "Random: danmaku will be distributed uniformly. Order: danmaku will fill the screen from top to bottom.",
       "interval": "Lower value means more densely packed danmaku. May cause performance issues if set too low.",
-      "maxOnScreen": "The maximum number of danmaku that can be displayed on the screen at the same time.",
+      "density": "Smoothly filters crowded moments using estimated visual load. Lower values favor clarity; higher values keep more comments. Dropped comments are not replayed later, and similar spam is preferentially collapsed.",
       "occlusion": "Experimental. Hides danmaku behind people in the video. May affect performance on slower devices.",
       "occlusionConfidence": "Higher only hides danmaku over high-confidence person pixels (tighter). Lower hides more aggressively.",
       "occlusionEdgeSoftness": "Blurs the mask edge so danmaku fade behind people instead of clipping sharply.",
