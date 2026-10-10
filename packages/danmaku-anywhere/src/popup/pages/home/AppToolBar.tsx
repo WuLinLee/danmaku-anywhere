@@ -15,11 +15,8 @@ import { useNavigate } from 'react-router'
 import { DrilldownMenu } from '@/common/components/Menu/DrilldownMenu'
 import { useDialog } from '@/common/components/Dialog/dialogStore'
 import { useToast } from '@/common/components/Toast/toastStore'
-import { i18n } from '@/common/localization/i18n'
 import { defaultDanmakuOptions } from '@/common/options/danmakuOptions/constant'
 import { DanmakuOptionsService } from '@/common/options/danmakuOptions/service'
-import { defaultExtensionOptions } from '@/common/options/extensionOptions/constant'
-import { ExtensionOptionsService } from '@/common/options/extensionOptions/service'
 import { useInjectService } from '@/common/hooks/useInjectService'
 import { serializeError } from '@/common/utils/serializeError'
 import { useAnyLoading } from '@/common/hooks/useAnyLoading'
@@ -37,32 +34,25 @@ export const AppToolBar = () => {
   const { t } = useTranslation()
   const dialog = useDialog()
   const toast = useToast.use.toast()
-  const extensionOptionsService = useInjectService(ExtensionOptionsService)
   const danmakuOptionsService = useInjectService(DanmakuOptionsService)
 
   const handleRestoreDefaults = () => {
     dialog.confirm({
-      title: t('common.restoreDefaultsTitle', 'Restore default settings?'),
+      title: t('common.restoreDefaultsTitle', 'Restore danmaku settings?'),
       content: t(
         'common.restoreDefaultsDescription',
-        'This will reset extension preferences and danmaku display settings to their defaults. It will not delete your library, site configs, danmaku providers, AI providers, custom matching rules, or backups.'
+        'This resets every option on the Danmaku Settings page, including style, speed, timeline offset, emission interval, display area, smart density, overlap, distribution, special danmaku, and occlusion.'
       ),
       confirmText: t('common.restore', 'Restore'),
       confirmButtonProps: { color: 'error' },
       onConfirm: async () => {
         try {
-          const currentOptions = await extensionOptionsService.get()
-          await Promise.all([
-            extensionOptionsService.set({
-              ...defaultExtensionOptions,
-              // Keep the installation ID; it is not a user preference.
-              id: currentOptions.id,
-            }),
-            danmakuOptionsService.set(defaultDanmakuOptions),
-          ])
-          await i18n.changeLanguage(defaultExtensionOptions.lang)
+          await danmakuOptionsService.set(defaultDanmakuOptions)
           toast.success(
-            t('common.restoreDefaultsSuccess', 'Settings restored to defaults')
+            t(
+              'common.restoreDefaultsSuccess',
+              'Danmaku settings restored to defaults'
+            )
           )
         } catch (error) {
           toast.error(
@@ -114,7 +104,7 @@ export const AppToolBar = () => {
         >
           <Settings />
         </IconButton>
-        <Tooltip title={t('common.restoreDefaults', 'Restore defaults')}>
+        <Tooltip title={t('common.restoreDefaults', 'Restore danmaku settings')}>
           <IconButton
             onClick={handleRestoreDefaults}
             aria-label={t('common.restoreDefaults', 'Restore defaults')}
