@@ -538,8 +538,6 @@ export const DanmakuStylesForm = ({
               />
             )}
           />
-            )}
-          />
           <Controller
             name="overlap"
             control={control}
