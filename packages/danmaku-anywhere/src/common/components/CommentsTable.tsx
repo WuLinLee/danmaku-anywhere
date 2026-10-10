@@ -94,6 +94,11 @@ function chipFor(
         label: t('danmaku.disposition.duplicate', 'Duplicate'),
         color: 'default',
       }
+    case 'density':
+      return {
+        label: t('danmaku.disposition.density', 'Density filtered'),
+        color: 'warning',
+      }
     case 'normal':
       return null
   }
@@ -169,6 +174,11 @@ export const CommentsTable = ({
         collapse: danmakuOptions.collapse,
         stageDurationSec:
           STAGE_DURATION_MS / 1000 / Math.max(danmakuOptions.speed, 0.1),
+        density: danmakuOptions.density,
+        fontSize: danmakuOptions.style.fontSize,
+        areaRatio:
+          ((danmakuOptions.area.yEnd - danmakuOptions.area.yStart) / 100) *
+          ((danmakuOptions.area.xEnd - danmakuOptions.area.xStart) / 100),
       }
     )
     const decisionByComment = new Map<CommentEntity, Decision>()
@@ -185,6 +195,12 @@ export const CommentsTable = ({
     danmakuOptions.filters,
     danmakuOptions.collapse,
     danmakuOptions.speed,
+    danmakuOptions.density,
+    danmakuOptions.style.fontSize,
+    danmakuOptions.area.yStart,
+    danmakuOptions.area.yEnd,
+    danmakuOptions.area.xStart,
+    danmakuOptions.area.xEnd,
   ])
 
   const filteredComments = useMemo(() => {
