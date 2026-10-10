@@ -70,20 +70,11 @@
   margin-left: 0.12em;
   font-weight: 700;
   font-size: 0.82em;
-  color: transparent;
-  background-image: linear-gradient(
-    90deg,
-    #ff5a5f 0%,
-    #ffad33 18%,
-    #ffe65c 35%,
-    #65db7d 52%,
-    #56c7ff 69%,
-    #8e85ff 84%,
-    #ec79f5 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #ff3434;
+  background: none;
+  background-clip: initial;
+  -webkit-background-clip: initial;
+  -webkit-text-fill-color: #ff3434;
   -webkit-text-stroke: 0.35px rgba(0, 0, 0, 0.85);
   text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.8);
   opacity: 1;
