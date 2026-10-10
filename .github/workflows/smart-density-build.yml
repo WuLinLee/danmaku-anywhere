@@ -9,6 +9,11 @@ on:
 permissions:
   contents: write
 
+# Serialize Release updates with the weekly sync workflow.
+concurrency:
+  group: smart-danmaku-density-release
+  cancel-in-progress: false
+
 jobs:
   build-chrome:
     runs-on: ubuntu-latest
