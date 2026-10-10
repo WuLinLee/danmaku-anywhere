@@ -8,8 +8,9 @@ on:
 permissions:
   contents: write
 
+# Share a lock with the branch build workflow so two builds never race to update Release.
 concurrency:
-  group: weekly-upstream-smart-density
+  group: smart-danmaku-density-release
   cancel-in-progress: false
 
 jobs:
