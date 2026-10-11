@@ -58,28 +58,27 @@
 }
 
 .dan-collapsed {
-  /* Keep grouped comments looking like danmaku, not a separate UI badge. */
-  display: inline;
-  margin: 0;
-  padding: 0;
-  background: none;
-  border: 0;
-  border-radius: 0;
-  /* Inherit the original danmaku color and its usual outline/shadow. */
+  /* Whole-element pill. Tight padding; gradient/color overrides reset so the
+   * pill stays plain white regardless of the source comment's color. */
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  background-clip: padding-box;
+  -webkit-background-clip: padding-box;
 }
 
 .dan-collapsed__count {
   display: inline-block;
-  margin-left: 0.12em;
   font-weight: 700;
-  font-size: 0.82em;
-  color: #ff3434;
-  background: none;
-  background-clip: initial;
-  -webkit-background-clip: initial;
-  -webkit-text-fill-color: #ff3434;
-  -webkit-text-stroke: 0.35px rgba(0, 0, 0, 0.85);
-  text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.8);
-  opacity: 1;
+  font-size: 0.75em;
+  opacity: 0.9;
   transform-origin: center;
 }
