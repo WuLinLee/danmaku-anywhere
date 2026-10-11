@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      VITE_PROXY_ORIGIN: ${{ vars.VITE_PROXY_ORIGIN }}
-      VITE_PROXY_URL: ${{ vars.VITE_PROXY_URL }}
+      VITE_PROXY_ORIGIN: ${{ vars.VITE_PROXY_ORIGIN || 'https://danmaku.weeblify.app' }}
+      VITE_PROXY_URL: ${{ vars.VITE_PROXY_URL || 'https://api.danmaku-staging.weeblify.app' }}
       VERSION_SUFFIX: ${{ inputs.version_suffix }}
 
     strategy:
