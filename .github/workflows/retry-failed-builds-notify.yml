@@ -58,5 +58,5 @@ jobs:
                 `- Branch: ${run.head_branch || 'unknown'}`,
                 '',
                 'Please open the run above to inspect the error. Close this issue after the workflow succeeds or the problem is fixed.'
-              ].join('\\n')
+              ].join('\n')
             });
