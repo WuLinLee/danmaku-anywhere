@@ -56,6 +56,8 @@ export class DanmakuManagerService {
 
   private rect = new DOMRectReadOnly()
   private injectedCss: HTMLElement[] = []
+  private customCss = ''
+  private useCustomCss = false
 
   private rectObs?: RectObserver
 
@@ -189,6 +191,8 @@ export class DanmakuManagerService {
 
       this.renderer.create(this.nodes.container, this.video, this.comments)
     }
+    // Re-apply custom CSS after the danmaku renderer has mounted its elements.
+    this.reloadCustomCss()
     this.updateOcclusion()
   }
 
@@ -230,7 +234,14 @@ export class DanmakuManagerService {
   }
 
   updateConfig(config: Partial<DanmakuOptions>) {
-    this.cleanupInjectedCss()
+    const customCssChanged =
+      config.customCss !== undefined || config.useCustomCss !== undefined
+    if (config.customCss !== undefined) {
+      this.customCss = config.customCss
+    }
+    if (config.useCustomCss !== undefined) {
+      this.useCustomCss = config.useCustomCss
+    }
     if (config.occlusion !== undefined) {
       this.occlusion = config.occlusion
     }
@@ -246,13 +257,10 @@ export class DanmakuManagerService {
     if (config.occlusionModel !== undefined) {
       this.occlusionModel = config.occlusionModel
     }
-    if (this.parent && config.useCustomCss === true && config.customCss) {
-      // TODO: validate css
-      this.injectedCss = injectCss(this.parent, [config.customCss])
-    }
     this.renderer.updateConfig(config)
     this.updateContainerStyles()
     this.updateOcclusion()
+    if (customCssChanged) this.reloadCustomCss()
   }
 
   seek(time: number) {
@@ -384,6 +392,13 @@ export class DanmakuManagerService {
     this.videoNodeObs.stop()
     this.debugOverlayService.unmount()
     this.unmount()
+  }
+
+  private reloadCustomCss() {
+    this.cleanupInjectedCss()
+    if (!this.parent || !this.useCustomCss || !this.customCss.trim()) return
+
+    this.injectedCss = injectCss(this.parent, [this.customCss])
   }
 
   private cleanupInjectedCss() {
