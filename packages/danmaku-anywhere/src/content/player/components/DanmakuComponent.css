@@ -3,6 +3,9 @@
   color: var(--color);
   white-space: nowrap;
   line-height: 1;
+  /* Include a small shadow-safe area in the measured danmaku box so the
+   * bottom outline isn't cut off when the renderer positions the last track. */
+  padding-bottom: 4px;
 }
 
 .da-danmaku-top {
