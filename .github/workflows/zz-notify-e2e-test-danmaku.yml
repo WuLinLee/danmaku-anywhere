@@ -16,3 +16,5 @@ jobs:
         run: |
           echo "E2E test only: this workflow contains no build, upload, or release steps."
           exit 1
+
+# retry validation attempt after fixing monitoring script
