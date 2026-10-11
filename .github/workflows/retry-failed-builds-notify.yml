@@ -15,89 +15,48 @@ jobs:
   retry-or-notify:
     if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
     steps:
       - name: Retry once, then open a notification issue
         uses: actions/github-script@v7
         with:
           script: |
             const run = context.payload.workflow_run;
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
             const attempt = run.run_attempt || 1;
             const title = `Scheduled/build workflow failed: ${run.name} (run ${run.id})`;
             const runUrl = run.html_url;
 
-            async function createAlert(message) {
-              const existing = await github.rest.issues.listForRepo({
-                owner,
-                repo,
-                state: 'open',
-                per_page: 100
-              });
-              if (existing.data.some(issue => !issue.pull_request && issue.title === title)) {
-                core.notice('An open notification issue already exists for this failed run.');
-                return;
-              }
-
-              await github.rest.issues.create({
-                owner,
-                repo,
-                title,
-                body: [
-                  message,
-                  '',
-                  `- Workflow: ${run.name}`,
-                  `- Run: ${runUrl}`,
-                  `- Branch: ${run.head_branch || 'unknown'}`,
-                  '',
-                  'Please inspect the run above. Close this issue after the workflow succeeds or the problem is fixed.'
-                ].join('\\n')
-              });
-            }
-
-            if (attempt >= 2) {
-              await createAlert('The workflow failed again after its automatic retry.');
-              return;
-            }
-
-            try {
+            if (attempt < 2) {
               await github.rest.actions.reRunWorkflowFailedJobs({
-                owner,
-                repo,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
                 run_id: run.id
               });
               core.notice(`Requested one retry for ${runUrl}`);
-            } catch (error) {
-              core.error(`Could not request the automatic retry: ${error.message}`);
-              await createAlert('The workflow failed and the automatic retry request itself failed.');
               return;
             }
 
-            // Re-runs do not reliably create another workflow_run completion event.
-            // Poll the same run so a second failure still creates an alert.
-            const deadline = Date.now() + 30 * 60 * 1000;
-            let retryRun;
-            while (Date.now() < deadline) {
-              await new Promise(resolve => setTimeout(resolve, 10000));
-              const response = await github.rest.actions.getWorkflowRun({
-                owner,
-                repo,
-                run_id: run.id
-              });
-              retryRun = response.data;
-              if ((retryRun.run_attempt || 1) >= 2 && retryRun.status === 'completed') {
-                break;
-              }
-            }
-
-            if (!retryRun || (retryRun.run_attempt || 1) < 2 || retryRun.status !== 'completed') {
-              await createAlert('The workflow failed and a retry was requested, but the second attempt did not complete within 30 minutes.');
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            if (existing.data.some(issue => !issue.pull_request && issue.title === title)) {
+              core.notice('An open notification issue already exists for this failed run.');
               return;
             }
 
-            if (retryRun.conclusion === 'failure') {
-              await createAlert('The workflow failed again after its automatic retry.');
-            } else {
-              core.notice(`Automatic retry completed with conclusion: ${retryRun.conclusion}. No alert issue created.`);
-            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body: [
+                'The workflow failed again after its automatic retry.',
+                '',
+                `- Workflow: ${run.name}`,
+                `- Run: ${runUrl}`,
+                `- Branch: ${run.head_branch || 'unknown'}`,
+                '',
+                'Please open the run above to inspect the error. Close this issue after the workflow succeeds or the problem is fixed.'
+              ].join('\\n')
+            });
