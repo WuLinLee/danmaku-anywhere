@@ -18,3 +18,5 @@ jobs:
           exit 1
 
 # retry validation attempt after fixing monitoring script
+
+# validation attempt after adding second-attempt polling
