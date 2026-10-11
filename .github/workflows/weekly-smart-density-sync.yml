@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '17 2 * * 1'
   workflow_dispatch:
+  # Validate changes to this workflow immediately instead of waiting for the next Monday.
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/weekly-smart-density-sync.yml
 
 permissions:
   contents: write
@@ -39,6 +45,7 @@ jobs:
           git fetch upstream master
 
       - name: Merge latest official master into the patch branch
+        id: merge
         shell: bash
         run: |
           set -euo pipefail
@@ -47,9 +54,10 @@ jobs:
           git merge --no-edit -X ours upstream/master
           after="$(git rev-parse HEAD)"
           if [ "$before" != "$after" ]; then
-            git push origin HEAD:smart-danmaku-density
-            echo "Merged latest official upstream into smart-danmaku-density."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Merged latest official upstream; the merge will be pushed only after validation succeeds."
           else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Patch branch is already up to date with official master."
           fi
 
@@ -122,6 +130,12 @@ jobs:
           path: release-assets/smart-danmaku-density-chrome.zip
           if-no-files-found: error
           retention-days: 14
+
+      - name: Push validated upstream merge to the patch branch
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git push origin HEAD:smart-danmaku-density
 
       - name: Point the single preview tag at this build
         run: |
