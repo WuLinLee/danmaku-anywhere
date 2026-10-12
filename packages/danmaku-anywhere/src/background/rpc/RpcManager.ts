@@ -286,7 +286,7 @@ export class RpcManager {
           return null
         }
 
-        return chrome.alarms.get(name)
+        return (await chrome.alarms.get(name)) ?? null
       },
       getFrameId: async (_, sender) => {
         if (sender.frameId === undefined) {
@@ -384,21 +384,8 @@ export class RpcManager {
         return res.data
       },
       providerConfigDelete: async (id, sender) => {
-        // Seasons and episodes are kept (orphaned: no live config matches their
-        // namespace) so downloaded danmaku stays viewable. Bookmarks are
-        // removed: they only exist to fetch new episodes, which an orphaned
-        // season can no longer do.
-        // Resolve the config's identity before deleting it; the read has no
-        // side effects, and deleteFromStorage (which throws if the config does
-        // not exist) still runs before any mutation.
-        const config = await this.providerConfigService.get(id)
+        await this.bookmarkService.deleteByProviderConfig(id)
         await this.providerConfigService.deleteFromStorage(id)
-        if (config) {
-          await this.bookmarkService.deleteBySeasonIdentity(
-            config.manifestId,
-            await this.providerService.computeConfigNamespaceKey(config)
-          )
-        }
 
         void invalidateContentScriptData(sender.tab?.id)
       },

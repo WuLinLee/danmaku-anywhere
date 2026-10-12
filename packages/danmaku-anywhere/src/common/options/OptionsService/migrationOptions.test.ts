@@ -1,13 +1,38 @@
 import { produce } from 'immer'
-import { describe, expect, it } from 'vitest' // Assuming you're using Vitest
-import { Logger } from '@/common/Logger'
+import { describe, expect, it, vi } from 'vitest' // Assuming you're using Vitest
+import { backgroundContainerModule } from '@/background/ioc'
+import { Logger, LoggerSymbol } from '@/common/Logger'
+import { defaultDanmakuOptions } from '@/common/options/danmakuOptions/constant'
+import { DanmakuOptionsService } from '@/common/options/danmakuOptions/service'
+import { createTestContainer } from '@/tests/createTestContainer'
+import { silentLogger } from '@/tests/silentLogger'
 import { migrateOptions } from './migrationOptions'
-import type { Options, Version } from './types' // Replace with your actual path
+import { OptionsService } from './OptionsService'
+import type { Options, UpgradeContext, Version } from './types' // Replace with your actual path
+
+const context: UpgradeContext = { stores: {}, defer: () => {} }
 
 const createOptions = <T>(data: T, version: number): Options<T> => ({
   data,
   version,
 })
+
+function createV7Options() {
+  return { filters: [], customCss: '', useCustomCss: false }
+}
+
+function captureDanmakuOptionsVersions(): Version[] {
+  const register = vi.spyOn(OptionsService.prototype, 'version')
+  const service = createTestContainer(
+    [backgroundContainerModule],
+    [{ identifier: LoggerSymbol, value: silentLogger }]
+  ).get(DanmakuOptionsService)
+  const versions = register.mock.calls
+    .filter((_, i) => register.mock.contexts[i] === service.options)
+    .map(([version, config]) => ({ version, ...config }))
+  register.mockRestore()
+  return versions
+}
 
 describe('migrateOptions', () => {
   const logger = Logger
@@ -20,7 +45,7 @@ describe('migrateOptions', () => {
       { version: 2, upgrade: (d) => d },
     ]
 
-    const result = migrateOptions(options, versions, logger, {})
+    const result = migrateOptions(options, versions, logger, context)
 
     expect(result).toEqual(options)
   })
@@ -32,7 +57,7 @@ describe('migrateOptions', () => {
       { version: 2, upgrade: (d: any) => ({ ...d, baz: 'qux' }) },
     ]
 
-    const result = migrateOptions(options, versions, logger, {})
+    const result = migrateOptions(options, versions, logger, context)
 
     expect(result).toEqual(
       createOptions({ foo: 'bar', bar: 'baz', baz: 'qux' }, 2)
@@ -46,7 +71,7 @@ describe('migrateOptions', () => {
       { version: 2, upgrade: (d: any) => ({ ...d, bar: 'baz' }) },
     ]
 
-    const result = migrateOptions(options, versions, logger, {})
+    const result = migrateOptions(options, versions, logger, context)
 
     expect(result).toEqual(createOptions({ foo: 'bar', bar: 'baz' }, 2))
   })
@@ -65,10 +90,10 @@ describe('migrateOptions', () => {
       },
     ]
 
-    const v1 = migrateOptions(options, [versions[0]], logger, {})
+    const v1 = migrateOptions(options, [versions[0]], logger, context)
     expect(v1).toEqual(createOptions({ foo: 'bar', bar: { baz: 1 } }, 1))
 
-    const v2 = migrateOptions(v1, [versions[1]], logger, {})
+    const v2 = migrateOptions(v1, [versions[1]], logger, context)
     expect(v2).toEqual(
       createOptions({ foo: 'bar', baq: 3, bar: { baz: 2 } }, 2)
     )
@@ -87,7 +112,7 @@ describe('migrateOptions', () => {
       },
     ]
 
-    const result = migrateOptions(options, versions, logger, {})
+    const result = migrateOptions(options, versions, logger, context)
 
     expect(result).toEqual(
       createOptions({ foo: { bar: { baz: 'updated' }, newProp: 'added' } }, 2)
@@ -106,58 +131,66 @@ describe('migrateOptions', () => {
       },
     ]
 
-    const result = migrateOptions(options, versions, logger, {})
+    const result = migrateOptions(options, versions, logger, context)
 
     expect(result).toEqual(createOptions({ foo: { bar: {} } }, 2))
   })
 
-  it('should add dedup options in v8 migration', () => {
-    const options = createOptions(
-      {
+  describe('real danmakuOptions v8 and v9 steps', () => {
+    it('seeds the dedup block in v8 with the six default whitelist patterns', () => {
+      const v8 = captureDanmakuOptionsVersions().find((v) => v.version === 8)
+
+      const result = migrateOptions(
+        createOptions(createV7Options(), 7),
+        v8 ? [v8] : [],
+        logger,
+        context
+      )
+
+      expect(result.version).toBe(8)
+      expect(result.data).toMatchObject({
         filters: [],
         customCss: '',
         useCustomCss: false,
-      },
-      7
-    )
-    const versions: Version[] = [
-      {
-        version: 8,
-        upgrade: (d) =>
-          produce<any>(d, (draft) => {
-            draft.dedup = {
+        dedup: {
+          enabled: true,
+          tolerance: 0.5,
+          whitelist: [
+            {
+              type: 'regex',
+              value: '^[?？!！。.,，~～\\s]+$',
               enabled: true,
-              tolerance: 0.5,
-              whitelist: [
-                {
-                  type: 'regex',
-                  value: '^[?？!！。.,，~～\\s]+$',
-                  enabled: true,
-                },
-                { type: 'regex', value: '^(哈|h){2,}$', enabled: true },
-                { type: 'regex', value: '^w{2,}$', enabled: true },
-                { type: 'regex', value: '^(6|六){2,}$', enabled: true },
-                { type: 'regex', value: '^(草|艹)+$', enabled: true },
-                { type: 'regex', value: '^(笑|lol|LOL)$', enabled: true },
-              ],
-            }
-          }),
-      },
-    ]
+            },
+            { type: 'regex', value: '^(哈|h){2,}$', enabled: true },
+            { type: 'regex', value: '^w{2,}$', enabled: true },
+            { type: 'regex', value: '^(6|六){2,}$', enabled: true },
+            { type: 'regex', value: '^(草|艹)+$', enabled: true },
+            { type: 'regex', value: '^(笑|lol|LOL)$', enabled: true },
+          ],
+        },
+      })
+    })
 
-    const result = migrateOptions(options, versions, logger, {})
-    const data = result.data as Record<string, unknown>
-    const dedup = data.dedup as {
-      enabled: boolean
-      tolerance: number
-      whitelist: unknown[]
-    }
+    it('removes the v8 dedup block in v9 and seeds the default collapse config', () => {
+      const versions = captureDanmakuOptionsVersions().filter(
+        (v) => v.version === 8 || v.version === 9
+      )
 
-    expect(result.version).toBe(8)
-    expect(dedup).toBeDefined()
-    expect(dedup.enabled).toBe(true)
-    expect(dedup.tolerance).toBe(0.5)
-    expect(dedup.whitelist).toHaveLength(6)
+      const result = migrateOptions(
+        createOptions(createV7Options(), 7),
+        versions,
+        logger,
+        context
+      )
+
+      expect(result.version).toBe(9)
+      expect(result.data).not.toHaveProperty('dedup')
+      expect(result.data).toMatchObject({
+        collapse: defaultDanmakuOptions.collapse,
+        filters: [],
+        customCss: '',
+      })
+    })
   })
 
   it('should handle complex nested changes (add, remove, update)', () => {
@@ -175,7 +208,7 @@ describe('migrateOptions', () => {
       },
     ]
 
-    const result = migrateOptions(options, versions, logger, {})
+    const result = migrateOptions(options, versions, logger, context)
     expect(result).toEqual(
       createOptions({ a: { b: 11, e: 5 }, d: 'new value' }, 2)
     )

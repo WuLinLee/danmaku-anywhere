@@ -4,9 +4,11 @@ import { ExtStorageService } from '../../storage/ExtStorageService'
 import type { ReadinessService } from '../ReadinessService/ReadinessService'
 import { migrateOptions } from './migrationOptions'
 import type {
+  DeferredWrite,
   Options,
   OptionsSchema,
   PrevOptions,
+  StoreSnapshot,
   UpgradeContext,
   Version,
   VersionConfig,
@@ -61,39 +63,45 @@ export class OptionsService<T extends OptionsSchema> {
     return this
   }
 
-  // upgrade options to latest version
-  async upgrade(context: UpgradeContext = {}): Promise<void> {
+  // Data that cannot be migrated is replaced with defaults. A storage error is
+  // not bad data: it propagates and the stored value stays as it was. Writes
+  // deferred by the steps land before this store is persisted, so if one fails
+  // the old data is still here for the next attempt to migrate again.
+  async upgrade(stores: StoreSnapshot = {}): Promise<void> {
     if (this.versions.length === 0) {
       throw new Error('Cannot upgrade without any versions')
     }
 
-    const options = await this.storageService.read()
+    const stored = await this.storageService.read()
 
-    this.logger.debug('Init')
-
-    if (!options) {
-      // if no options, set default options as the latest version
+    if (!stored) {
       this.logger.debug('No existing options found, using default options')
-
       await this.reset()
       return
     }
 
-    this.logger.debug(`Found options with version '${options.version}'`)
+    this.logger.debug(`Found options with version '${stored.version}'`)
+
+    const deferred: DeferredWrite[] = []
+    let upgraded: Options<T>
     try {
-      // if options is not versioned, assume version 0 for purpose of upgrading
-      options.version ??= 0
-      const upgradedOptions = migrateOptions(
-        options,
+      upgraded = migrateOptions(
+        // unversioned options predate versioning, so they start from 0
+        { data: stored.data, version: stored.version ?? 0 },
         this.versions,
         this.logger,
-        context
+        { stores, defer: (write) => deferred.push(write) }
       )
-      await this.storageService.set(upgradedOptions)
     } catch (error) {
       this.logger.error('Failed to upgrade options, reset to default', error)
       await this.reset()
+      return
     }
+
+    for (const write of deferred) {
+      await write.run()
+    }
+    await this.queueOperation(() => this.storageService.set(upgraded))
   }
 
   // Unlike upgrade(), a failing step throws instead of resetting the store to
@@ -105,6 +113,14 @@ export class OptionsService<T extends OptionsSchema> {
       this.logger,
       context
     ).data
+  }
+
+  // Replaces the data at the latest version without waiting for readiness,
+  // for writes made while the stores are being upgraded or restored.
+  setUnblocked(data: T): Promise<void> {
+    return this.queueOperation(() =>
+      this.storageService.set({ data, version: this.latestVersion })
+    )
   }
 
   async get(): Promise<T> {
@@ -167,12 +183,17 @@ export class OptionsService<T extends OptionsSchema> {
   }
 
   // Read without waiting for readiness
-  async readUnblocked() {
+  async readUnblocked(): Promise<T> {
     const options = await this.storageService.read()
     if (!options) {
       return this.defaultOptions
     }
     return options.data
+  }
+
+  // The stored envelope as is, or undefined when the store was never written
+  readStoredUnblocked(): Promise<Options<T> | undefined> {
+    return this.storageService.read()
   }
 
   private setup() {

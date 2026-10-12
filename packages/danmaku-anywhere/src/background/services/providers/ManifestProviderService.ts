@@ -13,7 +13,6 @@ import type { ManifestRunner, RunOptions } from '@mr-quin/dango'
 import type { z } from 'zod'
 import type { DanmakuFetchByMeta } from '@/common/danmaku/dto'
 import type { ILogger } from '@/common/Logger'
-import { computeNamespaceKey } from '@/common/providers/namespaceKey'
 import { findEpisodeByNumber } from './common/findEpisodeByNumber'
 import type {
   IDanmakuProvider,
@@ -25,7 +24,7 @@ import type { ManifestRegistry } from './ManifestRegistry'
 import { resolveManifestInputs } from './manifestInputs'
 
 // Manifest output shapes: the canonical fields a search/episodes/danmaku
-// pipeline must emit. The host adds `manifestId` / `namespaceKey` /
+// pipeline must emit. The host adds `manifestId` / `providerConfigId` /
 // `schemaVersion` and runs `stripHtml` on titles.
 interface ManifestSearchRow {
   providerIds: Record<string, unknown>
@@ -117,17 +116,19 @@ export class ManifestProviderService implements IDanmakuProvider {
     private readonly logger: ILogger
   ) {}
 
-  // Derived from the runner because the manifest declares which config fields
-  // identify an instance (identityFields).
-  private namespaceKeyFor(runner: ManifestRunner): string {
-    return computeNamespaceKey(
-      {
-        id: this.config.providerConfigId,
-        manifestId: this.config.manifestId,
-        configValues: this.config.configValues,
-      },
-      runner.manifest.identityFields
-    )
+  private stampSeason(row: ManifestSearchRow): SeasonInsert {
+    return {
+      ...row,
+      title: stripHtml(row.title),
+      manifestId: this.config.manifestId,
+      providerConfigId: this.config.providerConfigId,
+      schemaVersion: SEASON_SCHEMA_VERSION,
+    }
+  }
+
+  private async getRunner(): Promise<ManifestRunner> {
+    await this.registry.ready
+    return this.registry.getRunner(this.config.manifestId)
   }
 
   private resolveInputs(
@@ -143,19 +144,13 @@ export class ManifestProviderService implements IDanmakuProvider {
 
   async search(params: SeasonSearchParams): Promise<SeasonInsert[]> {
     this.logger.debug('Search via manifest', this.config.manifestId, params)
-    const runner = this.registry.getRunner(this.config.manifestId)
+    const runner = await this.getRunner()
     const inputs = this.resolveInputs(runner, { q: params.keyword })
     const rows = await runner.runSearch<ManifestSearchRow[]>(
       inputs,
       MANIFEST_RUN_OPTIONS
     )
-    return rows.map((row) => ({
-      ...row,
-      title: stripHtml(row.title),
-      manifestId: this.config.manifestId,
-      namespaceKey: this.namespaceKeyFor(runner),
-      schemaVersion: SEASON_SCHEMA_VERSION,
-    }))
+    return rows.map((row) => this.stampSeason(row))
   }
 
   async getSeason(
@@ -166,7 +161,7 @@ export class ManifestProviderService implements IDanmakuProvider {
       this.config.manifestId,
       seasonRemoteIds
     )
-    const runner = this.registry.getRunner(this.config.manifestId)
+    const runner = await this.getRunner()
     if (!runner.hasSeason()) {
       return null
     }
@@ -178,13 +173,7 @@ export class ManifestProviderService implements IDanmakuProvider {
     if (row === null) {
       return null
     }
-    return {
-      ...row,
-      title: stripHtml(row.title),
-      manifestId: this.config.manifestId,
-      namespaceKey: this.namespaceKeyFor(runner),
-      schemaVersion: SEASON_SCHEMA_VERSION,
-    }
+    return this.stampSeason(row)
   }
 
   async getEpisodes(
@@ -195,7 +184,7 @@ export class ManifestProviderService implements IDanmakuProvider {
       this.config.manifestId,
       seasonRemoteIds
     )
-    const runner = this.registry.getRunner(this.config.manifestId)
+    const runner = await this.getRunner()
     const inputs = this.resolveInputs(runner, seasonRemoteIds)
     const rows = await runner.runEpisodes<ManifestEpisodeRow[]>(
       inputs,
@@ -217,7 +206,7 @@ export class ManifestProviderService implements IDanmakuProvider {
       this.config.manifestId,
       meta.providerIds
     )
-    const runner = this.registry.getRunner(this.config.manifestId)
+    const runner = await this.getRunner()
     // meta.params holds per-episode hints stashed at search/episodes time
     // (e.g. chConvert/withRelated). providerIds take precedence on key collision.
     const inputs = this.resolveInputs(runner, {
@@ -262,13 +251,14 @@ export class ManifestProviderService implements IDanmakuProvider {
     }
   }
 
+  // Synchronous, so the caller must await the registry's ready first.
   canParse(url: string): boolean {
     return this.registry.getRunner(this.config.manifestId).canParse(url)
   }
 
   async parseUrl(url: string): Promise<ParseUrlResult | null> {
     this.logger.debug('Parse URL via manifest', this.config.manifestId, url)
-    const runner = this.registry.getRunner(this.config.manifestId)
+    const runner = await this.getRunner()
     const result = await runner.runParseUrl<ManifestParseUrlOutput>(
       url,
       undefined,
@@ -282,13 +272,7 @@ export class ManifestProviderService implements IDanmakuProvider {
     }
     const now = Date.now()
     return {
-      seasonInsert: {
-        ...result.seasonInsert,
-        title: stripHtml(result.seasonInsert.title),
-        manifestId: this.config.manifestId,
-        namespaceKey: this.namespaceKeyFor(runner),
-        schemaVersion: SEASON_SCHEMA_VERSION,
-      },
+      seasonInsert: this.stampSeason(result.seasonInsert),
       episodeMeta: {
         ...result.episodeMeta,
         title: stripHtml(result.episodeMeta.title),

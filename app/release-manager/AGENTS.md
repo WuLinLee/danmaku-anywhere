@@ -6,9 +6,11 @@ A standalone, self-updating desktop app (Tauri 2) that downloads extension
 release/preview builds from the `Mr-Quin/danmaku-anywhere` GitHub releases and
 manages which cached build is the "active" unpacked folder loaded into
 `chrome://extensions`. Primary target is Linux, shipped as a self-updating
-AppImage. Windows also ships as an NSIS installer (installer only: no in-app
-self-update, so its build produces no updater artifacts and needs no signing
-key). The core is cross-platform; the unix-only bits (config file mode, the
+AppImage. Windows also ships as an NSIS installer plus a portable executable
+(no in-app self-update on Windows, so its build produces no updater artifacts
+and needs no signing key). The portable file is the plain `release-manager.exe`
+from the build renamed; it uses the same `~/.da-release-manager` data dir as
+the installed app and, unlike the installer, does not bootstrap WebView2. The core is cross-platform; the unix-only bits (config file mode, the
 libwayland trampoline) are `cfg`-gated.
 
 It is versioned and released independently of the extension, with its own
@@ -55,6 +57,14 @@ unauthenticated requests suffice.
   AppImage) to work around it. The bundled webkit still renders in software on
   newer GPUs, so it can feel sluggish; the real fix is to use the host webkit
   (ship rpm/deb, or a non-bundling AppImage), not done in v1.
+- Windows: `winget install Rustlang.Rustup` (stable MSVC toolchain, defaults are
+  fine) plus the Visual Studio 2022 Build Tools with the C++ workload:
+  `winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet
+  --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"`.
+  Without the `--override` winget installs an empty Build Tools shell with no
+  compiler or Windows SDK, and the silent install still raises a UAC prompt
+  that has to be approved on screen. WebView2 ships with Windows 11. Open a new
+  shell afterwards so `%USERPROFILE%\.cargo\bin` is on PATH.
 
 ## How to run
 
@@ -79,6 +89,11 @@ unauthenticated requests suffice.
   `DA_RELEASE_MANAGER_DIR`.
 - There is no WebDriver UI e2e: Fedora ships no `WebKitWebDriver` matching
   webkit2gtk-4.1, and the backend integration test already covers the behavior.
+- The same `pnpm test` runs on Windows. Two tests are platform-aware: the
+  active-folder link test uses a junction on Windows because a real directory
+  symlink needs Developer Mode or an elevated shell, and the config file mode
+  test is unix-only because Windows has no mode bits (the file inherits the
+  user-private ACL of the profile directory instead).
 
 ## Configuration seams (env, production defaults)
 
@@ -105,7 +120,10 @@ copy, never a symlink: a sandboxed (Flatpak) Chrome reads the picked folder
 through a document portal that does not grant the symlink's target, so a
 symlinked active folder fails with "File path cannot be resolved." Copying keeps
 the loaded path stable across swaps and works for both native and Flatpak Chrome.
-`remove_build` refuses to delete the currently active build.
+`remove_build` refuses to delete the currently active build. A leftover symlink
+or junction at `active` is removed as a link, never followed, so the build it
+pointed at survives; on Windows that takes `remove_dir`, since `remove_file` on
+a directory link fails with access denied.
 
 ## Self-update and signing
 
@@ -121,6 +139,11 @@ the loaded path stable across swaps and works for both native and Flatpak Chrome
 Push a `release-manager-v<version>` tag (or run the workflow manually). CI builds
 and signs the AppImage and creates a draft release with `latest.json`. A human
 publishes the draft; publishing promotes `latest.json` onto the floating
-`release-manager-latest` release that the updater polls. The first install is
-manual (download the AppImage from the release); self-update covers every
-version after that.
+`release-manager-latest` release that the updater polls. A manual run creates no
+release but uploads the AppImage, the Windows installer and the portable
+executable as workflow artifacts, which is the way to get a CI-built build to
+try without tagging. Bump the version in `tauri.conf.json`, `package.json` and
+`src-tauri/Cargo.toml` before tagging; the tag must equal
+`release-manager-v<that version>` or the two jobs target different releases. The first
+install is manual (download the AppImage from the release); self-update covers
+every version after that.
