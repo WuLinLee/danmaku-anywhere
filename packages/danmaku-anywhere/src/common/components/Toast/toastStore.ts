@@ -84,10 +84,10 @@ const toastStore = create<ToastStoreState>((set, get) => ({
     actionFn,
     actionLabel,
   }) => {
-    // Keep routine toasts brief, but leave actionable and warning/error toasts visible.
+    // Keep routine and actionable toasts brief; leave warning/error toasts visible longer.
     const resolvedDuration =
       duration ??
-      (severity === 'warning' || severity === 'error' || actionFn ? 3500 : 1000)
+      (severity === 'warning' || severity === 'error' ? 3500 : 1000)
 
     set({
       notifications: [
