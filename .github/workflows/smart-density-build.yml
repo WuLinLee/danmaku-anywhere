@@ -1,4 +1,4 @@
-name: Smart Danmaku Density Build
+name: Build and Publish Preview
 
 on:
   push:
@@ -9,9 +9,9 @@ on:
 permissions:
   contents: write
 
-# Serialize Release updates with the weekly sync workflow.
+# Serialize preview publication so concurrent pushes cannot race to update the same Release.
 concurrency:
-  group: smart-danmaku-density-release
+  group: customized-preview-release
   cancel-in-progress: false
 
 jobs:
@@ -110,11 +110,10 @@ jobs:
           tag_name: smart-danmaku-density-preview
           name: Smart Danmaku Density Preview
           body: |
-            Automated preview build for the danmaku-customizations branch.
+            Automated preview build from the customization branch.
 
-            The attached Chrome extension is rebuilt weekly from the latest official
-            upstream master, with the repository's customizations merged on top. The ZIP is
-            validated to contain manifest.json directly at its root.
+            The scheduled sync workflow merges the latest official upstream changes before
+            requesting this build. The ZIP is validated to contain manifest.json at its root.
           prerelease: true
           draft: false
           make_latest: false
