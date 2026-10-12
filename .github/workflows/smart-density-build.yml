@@ -1,9 +1,9 @@
 name: Smart Danmaku Density Build
 
+# This legacy branch is kept as a rollback snapshot. Automatic preview publishing
+# now belongs exclusively to danmaku-customizations to avoid both branches racing to
+# overwrite the same smart-danmaku-density-preview Release.
 on:
-  push:
-    branches:
-      - smart-danmaku-density
   workflow_dispatch:
 
 permissions:
