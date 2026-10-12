@@ -13,7 +13,6 @@ on:
 
 permissions:
   contents: write
-  workflows: write
 
 # Share a lock with the branch build workflow so two builds never race to update Release.
 concurrency:
@@ -33,7 +32,8 @@ jobs:
         with:
           ref: danmaku-customizations
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Use a PAT with contents:write and workflows:write when upstream adds workflow-file changes.
+          token: ${{ secrets.UPSTREAM_SYNC_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Configure bot identity
         run: |
