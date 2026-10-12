@@ -79,18 +79,23 @@ const toastStore = create<ToastStoreState>((set, get) => ({
   },
   enqueue: ({
     message,
-    duration = 3500,
+    duration,
     severity = 'info',
     actionFn,
     actionLabel,
   }) => {
+    // Keep routine toasts brief, but leave actionable and warning/error toasts visible.
+    const resolvedDuration =
+      duration ??
+      (severity === 'warning' || severity === 'error' || actionFn ? 3500 : 1000)
+
     set({
       notifications: [
         ...get().notifications,
         {
           message,
           severity,
-          duration,
+          duration: resolvedDuration,
           actionFn,
           actionLabel,
           key: `${performance.now()}-${Math.random()}`,
