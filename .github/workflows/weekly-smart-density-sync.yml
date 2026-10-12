@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  workflows: write
 
 # Share a lock with the branch build workflow so two builds never race to update Release.
 concurrency:
@@ -27,10 +28,10 @@ jobs:
       VITE_PROXY_ORIGIN: ${{ vars.VITE_PROXY_ORIGIN || 'https://danmaku.weeblify.app' }}
       VERSION_SUFFIX: ${{ github.run_number }}
     steps:
-      - name: Check out the patch branch
+      - name: Check out the customization branch
         uses: actions/checkout@v4
         with:
-          ref: smart-danmaku-density
+          ref: danmaku-customizations
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -44,7 +45,7 @@ jobs:
           git remote add upstream https://github.com/Mr-Quin/danmaku-anywhere.git
           git fetch upstream master
 
-      - name: Merge latest official master into the patch branch
+      - name: Merge latest official master into the customization branch
         id: merge
         shell: bash
         run: |
@@ -58,7 +59,7 @@ jobs:
             echo "Merged latest official upstream; the merge will be pushed only after validation succeeds."
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Patch branch is already up to date with official master."
+            echo "Customization branch is already up to date with official master."
           fi
 
       - name: Set up pnpm
@@ -131,11 +132,11 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Push validated upstream merge to the patch branch
+      - name: Push validated upstream merge to the customization branch
         if: steps.merge.outputs.changed == 'true'
         run: |
           set -euo pipefail
-          git push origin HEAD:smart-danmaku-density
+          git push origin HEAD:danmaku-customizations
 
       - name: Point the single preview tag at this build
         run: |
@@ -152,7 +153,7 @@ jobs:
             Weekly automated preview build.
 
             This release is rebuilt from the latest official upstream master with
-            the smart density patch merged on top. Only the newest ZIP is retained.
+            the repository's customizations merged on top. Only the newest ZIP is retained.
           prerelease: true
           draft: false
           make_latest: false
