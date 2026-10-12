@@ -45,23 +45,55 @@ jobs:
           git remote add upstream https://github.com/Mr-Quin/danmaku-anywhere.git
           git fetch upstream master
 
-      - name: Merge latest official master into the customization branch
+      - name: Integrate latest official master into the customization branch
         id: merge
         shell: bash
         run: |
           set -euo pipefail
           before="$(git rev-parse HEAD)"
-          # Keep custom patch hunks when upstream changes touch the same lines.
-          git merge --no-edit -X ours upstream/master
-          after="$(git rev-parse HEAD)"
-          if [ "$before" != "$after" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "Merged latest official upstream; the merge will be pushed only after validation succeeds."
+          upstream_sha="$(git rev-parse upstream/master)"
+
+          # Remember the previous upstream snapshot separately because we intentionally
+          # keep upstream workflow commits out of this fork's branch history. GITHUB_TOKEN
+          # cannot push commits that introduce or update .github/workflows files.
+          if [ -f .github/upstream-sync-commit ]; then
+            previous_upstream_sha="$(tr -d '\r\n' < .github/upstream-sync-commit)"
+            if ! git cat-file -e "${previous_upstream_sha}^{commit}" 2>/dev/null; then
+              previous_upstream_sha="$(git merge-base "$before" "$upstream_sha")"
+            fi
           else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Customization branch is already up to date with official master."
+            previous_upstream_sha="$(git merge-base "$before" "$upstream_sha")"
           fi
 
+          if [ "$previous_upstream_sha" = "$upstream_sha" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Customization branch is already synchronized with official master."
+            exit 0
+          fi
+
+          echo "Merging upstream changes since $previous_upstream_sha into the customization tree."
+          merged_tree="$(git merge-tree --write-tree --merge-base="$previous_upstream_sha" -X ours "$before" "$upstream_sha")"
+
+          # Materialize the merged source tree, then restore this fork's own automation.
+          # This keeps the pushed commit free of .github/workflows changes and avoids
+          # requiring a PAT with elevated workflow permissions.
+          git read-tree --reset -u "$merged_tree"
+          git checkout "$before" -- .github/workflows
+          printf '%s\n' "$upstream_sha" > .github/upstream-sync-commit
+          git add -A
+
+          final_tree="$(git write-tree)"
+          if git diff --quiet "$before" "$final_tree"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No source changes to commit after upstream merge."
+            exit 0
+          fi
+
+          short_sha="$(printf '%s' "$upstream_sha" | cut -c1-12)"
+          new_commit="$(git commit-tree "$final_tree" -p "$before" -m "chore: sync upstream master at $short_sha")"
+          git reset --hard "$new_commit"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "Created single-parent sync commit $new_commit for upstream $upstream_sha."
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
 
