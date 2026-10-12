@@ -32,8 +32,7 @@ jobs:
         with:
           ref: danmaku-customizations
           fetch-depth: 0
-          # Use a PAT with contents:write and workflows:write when upstream adds workflow-file changes.
-          token: ${{ secrets.UPSTREAM_SYNC_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure bot identity
         run: |
