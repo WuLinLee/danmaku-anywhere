@@ -4,8 +4,6 @@ permissions:
   contents: read
 
 on:
-  schedule:
-    - cron: '0 2 * * *' # 2 AM every day
   pull_request:
     types: [ labeled, synchronize, opened ]
   workflow_dispatch:
