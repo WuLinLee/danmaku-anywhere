@@ -3,8 +3,8 @@ name: Retry Failed Builds and Notify
 on:
   workflow_run:
     workflows:
-      - Smart Danmaku Density Build
-      - Weekly Upstream Sync and Smart Density Release
+      - Build and Publish Preview
+      - Sync Official Upstream
       - Preview Build
     types: [completed]
 
