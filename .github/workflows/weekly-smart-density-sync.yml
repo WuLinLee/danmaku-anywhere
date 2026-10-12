@@ -1,10 +1,10 @@
-name: Weekly Upstream Sync and Smart Density Release
+name: Sync Official Upstream
 
 on:
   schedule:
     - cron: '17 2 * * 1'
   workflow_dispatch:
-  # Validate changes to this workflow immediately instead of waiting for the next Monday.
+  # Validate this workflow immediately when its own logic changes.
   push:
     branches:
       - master
@@ -13,19 +13,15 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
-# Share a lock with the branch build workflow so two builds never race to update Release.
 concurrency:
-  group: smart-danmaku-density-release
+  group: official-upstream-sync
   cancel-in-progress: false
 
 jobs:
-  sync-build-release:
+  sync:
     runs-on: ubuntu-latest
-    env:
-      VITE_PROXY_URL: ${{ vars.VITE_PROXY_URL || 'https://api.danmaku-staging.weeblify.app' }}
-      VITE_PROXY_ORIGIN: ${{ vars.VITE_PROXY_ORIGIN || 'https://danmaku.weeblify.app' }}
-      VERSION_SUFFIX: ${{ github.run_number }}
     steps:
       - name: Check out the customization branch
         uses: actions/checkout@v4
@@ -44,7 +40,7 @@ jobs:
           git remote add upstream https://github.com/Mr-Quin/danmaku-anywhere.git
           git fetch upstream master
 
-      - name: Integrate latest official master into the customization branch
+      - name: Merge upstream changes into the customization branch
         id: merge
         shell: bash
         run: |
@@ -52,9 +48,7 @@ jobs:
           before="$(git rev-parse HEAD)"
           upstream_sha="$(git rev-parse upstream/master)"
 
-          # Remember the previous upstream snapshot separately because we intentionally
-          # keep upstream workflow commits out of this fork's branch history. GITHUB_TOKEN
-          # cannot push commits that introduce or update .github/workflows files.
+          # Track the upstream snapshot separately so the fork keeps its own workflows.
           if [ -f .github/upstream-sync-commit ]; then
             previous_upstream_sha="$(tr -d '\r\n' < .github/upstream-sync-commit)"
             if ! git cat-file -e "${previous_upstream_sha}^{commit}" 2>/dev/null; then
@@ -66,17 +60,14 @@ jobs:
 
           if [ "$previous_upstream_sha" = "$upstream_sha" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Customization branch is already synchronized with official master."
+            echo "Customization branch is already synchronized."
             exit 0
           fi
 
-          echo "Merging upstream changes since $previous_upstream_sha into the customization tree."
           merged_tree="$(git merge-tree --write-tree --merge-base="$previous_upstream_sha" -X ours "$before" "$upstream_sha")"
-
-          # Materialize the merged source tree, then restore this fork's own automation.
-          # This keeps the pushed commit free of .github/workflows changes and avoids
-          # requiring a PAT with elevated workflow permissions.
           git read-tree --reset -u "$merged_tree"
+
+          # Keep the fork's automation instead of importing upstream workflow files.
           git checkout "$before" -- .github/workflows
           printf '%s\n' "$upstream_sha" > .github/upstream-sync-commit
           git add -A
@@ -84,7 +75,7 @@ jobs:
           final_tree="$(git write-tree)"
           if git diff --quiet "$before" "$final_tree"; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No source changes to commit after upstream merge."
+            echo "No source changes to commit."
             exit 0
           fi
 
@@ -92,116 +83,15 @@ jobs:
           new_commit="$(git commit-tree "$final_tree" -p "$before" -m "chore: sync upstream master at $short_sha")"
           git reset --hard "$new_commit"
           echo "changed=true" >> "$GITHUB_OUTPUT"
-          echo "Created single-parent sync commit $new_commit for upstream $upstream_sha."
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+          echo "Prepared upstream sync commit $new_commit."
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build workspace packages
-        run: pnpm build:packages
-
-      - name: Test density algorithm
-        run: pnpm --filter @danmaku-anywhere/danmaku-engine test
-
-      - name: Type-check extension
-        run: pnpm --filter @mr-quin/danmaku-anywhere type-check
-
-      - name: Build Chrome extension
-        working-directory: packages/danmaku-anywhere
-        run: pnpm build
-
-      - name: Package and validate installable extension ZIP
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import zipfile
-          from pathlib import Path
-
-          source_dir = Path("packages/danmaku-anywhere/build")
-          manifest_path = source_dir / "manifest.json"
-          if not manifest_path.is_file():
-              raise SystemExit(f"Build output is missing {manifest_path}")
-
-          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-          if manifest.get("manifest_version") != 3:
-              raise SystemExit("Generated manifest.json is not a valid Manifest V3 manifest")
-
-          output = Path("release-assets/smart-danmaku-density-chrome.zip")
-          output.parent.mkdir(parents=True, exist_ok=True)
-          with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-              for file_path in sorted(source_dir.rglob("*")):
-                  if file_path.is_file():
-                      archive.write(file_path, file_path.relative_to(source_dir).as_posix())
-
-          with zipfile.ZipFile(output, "r") as archive:
-              names = archive.namelist()
-              if "manifest.json" not in names:
-                  raise SystemExit("Invalid extension ZIP: manifest.json is not at the ZIP root")
-              if "build/manifest.json" in names or not json.loads(archive.read("manifest.json")):
-                  raise SystemExit("Invalid extension ZIP: nested or unreadable manifest.json")
-              bad_paths = [name for name in names if name.startswith("/") or ".." in Path(name).parts]
-              if bad_paths:
-                  raise SystemExit(f"Invalid paths in extension ZIP: {bad_paths[:5]}")
-              print(f"Validated {output}: root manifest.json, {len(names)} files, {output.stat().st_size} bytes")
-          PY
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: smart-danmaku-density-chrome
-          path: release-assets/smart-danmaku-density-chrome.zip
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Push validated upstream merge to the customization branch
+      - name: Push synchronized source
         if: steps.merge.outputs.changed == 'true'
-        run: |
-          set -euo pipefail
-          git push origin HEAD:danmaku-customizations
+        run: git push origin HEAD:danmaku-customizations
 
-      - name: Point the single preview tag at this build
-        run: |
-          set -euo pipefail
-          git tag -f smart-danmaku-density-preview "$(git rev-parse HEAD)"
-          git push origin refs/tags/smart-danmaku-density-preview --force
-
-      - name: Publish or update the single GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: smart-danmaku-density-preview
-          name: Smart Danmaku Density Preview
-          body: |
-            Weekly automated preview build.
-
-            This release is rebuilt from the latest official upstream master with
-            the repository's customizations merged on top. Only the newest ZIP is retained.
-          prerelease: true
-          draft: false
-          make_latest: false
-          overwrite_files: true
-          fail_on_unmatched_files: true
-          files: release-assets/smart-danmaku-density-chrome.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Remove any older or differently named assets from this Release
+      # GITHUB_TOKEN pushes don't start a second workflow, so explicitly start the
+      # single build-and-publish workflow after the source branch is up to date.
+      - name: Build and publish the updated preview
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          while IFS= read -r asset; do
-            [ -n "$asset" ] || continue
-            [ "$asset" = "smart-danmaku-density-chrome.zip" ] && continue
-            gh release delete-asset smart-danmaku-density-preview "$asset" --yes
-          done < <(gh release view smart-danmaku-density-preview --json assets --jq '.assets[].name')
+        run: gh workflow run smart-density-build.yml --ref danmaku-customizations
