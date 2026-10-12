@@ -3,7 +3,7 @@ name: Smart Danmaku Density Build
 on:
   push:
     branches:
-      - smart-danmaku-density
+      - danmaku-customizations
   workflow_dispatch:
 
 permissions:
@@ -110,10 +110,10 @@ jobs:
           tag_name: smart-danmaku-density-preview
           name: Smart Danmaku Density Preview
           body: |
-            Automated preview build for the smart-danmaku-density branch.
+            Automated preview build for the danmaku-customizations branch.
 
             The attached Chrome extension is rebuilt weekly from the latest official
-            upstream master, with the smart density patch merged on top. The ZIP is
+            upstream master, with the repository's customizations merged on top. The ZIP is
             validated to contain manifest.json directly at its root.
           prerelease: true
           draft: false
