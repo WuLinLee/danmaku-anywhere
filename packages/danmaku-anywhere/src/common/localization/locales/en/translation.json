@@ -10,7 +10,7 @@
     "githubRepositoryDescription": "Source code and contributions",
     "imageIllustrator": "Graphic Illustrator",
     "qqGroup": "QQ Group",
-    "reportBug": "Report a Bug",
+    "reportBug": "Report a bug",
     "reportIssueDescription": "Use this if you cannot use GitHub Issues",
     "resources": "Resources",
     "technicalInfo": "Technical Information",
@@ -21,6 +21,8 @@
     "apiKey": "API Key",
     "baseUrl": "Base URL",
     "baseUrlHelper": "e.g. https://api.openai.com/v1",
+    "builtInHint": "Provided by Danmaku Anywhere, nothing to set up.",
+    "builtInName": "Danmaku Anywhere AI",
     "configure": "Configure AI",
     "delete": {
       "message": "Are you sure you want to delete \"{{name}}\"?",
@@ -56,20 +58,23 @@
     "refreshMetadata": "Refresh Metadata",
     "sourceRemoved": "Source removed",
     "sourceRemovedTooltip": "This source has been deleted.",
+    "sourceUnavailableTooltip": "This source can't be used right now.",
     "title": "Title"
   },
   "bookmark": {
     "add": "Follow",
     "refreshEpisodes": "Refresh Episodes",
     "remove": "Following",
-    "tooltip": "Save to your library to see all episodes anytime, including ones you have not downloaded yet."
+    "tooltip": "Follow to see all episodes in your library anytime, including ones you have not downloaded yet.",
+    "unfollow": "Unfollow"
   },
   "common": {
-    "acknowledge": "Ok",
+    "acknowledge": "OK",
     "add": "Add",
     "advanced": "Advanced",
     "apply": "Apply",
     "autoSave": "Auto-save",
+    "back": "Back",
     "cancel": "Cancel",
     "close": "Close",
     "confirm": "Confirm",
@@ -83,19 +88,21 @@
     "deleted": "Deleted",
     "docs": "Documentation",
     "duration": {
-      "day_one": "{{count}} day",
-      "day_other": "{{count}} days"
+      "dayUnit_one": "day",
+      "dayUnit_other": "days"
     },
     "enable": "Enable",
     "export": "Export",
     "failed": "Failed",
     "filter": "Filter",
     "import": "Import",
-    "itsEmpty": "There's nothing here...",
+    "itsEmpty": "There's nothing here…",
     "key": "Key",
+    "moreActions": "More actions",
     "multiselect": "Multiselect",
     "name": "Name",
     "next": "Next",
+    "openInNew": "Open in new window or tab",
     "openInNewTab": "Open in new tab",
     "openInNewWindow": "Open in new window",
     "pip": "Picture-in-Picture",
@@ -103,15 +110,10 @@
     "regexShort": "Regex",
     "reset": "Reset",
     "restore": "Restore",
-    "restoreDefaults": "Restore danmaku settings",
-    "restoreDefaultsTitle": "Restore danmaku settings?",
-    "restoreDefaultsDescription": "This resets every option on the Danmaku Settings page, including style, speed, timeline offset, emission interval, display area, smart density, overlap, distribution, special danmaku, and occlusion. It will not change extension language, hotkeys, providers, or other preferences, and will not delete user data.",
-    "restoreDefaultsSuccess": "Danmaku settings restored to defaults",
-    "restoreDefaultsFailed": "Failed to restore danmaku settings: {{message}}",
     "retry": "Retry",
     "save": "Save",
     "saved": "Saved",
-    "saving": "Saving...",
+    "saving": "Saving…",
     "search": "Search",
     "success": "Success",
     "textShort": "Text",
@@ -119,7 +121,12 @@
     "updated": "Updated",
     "value": "Value",
     "valueJson": "Value (JSON)",
-    "viewDocs": "View Docs"
+    "viewDocs": "View Docs",
+    "restoreDefaults": "Restore danmaku settings",
+    "restoreDefaultsTitle": "Restore danmaku settings?",
+    "restoreDefaultsDescription": "This resets every option on the Danmaku Settings page, including style, speed, timeline offset, emission interval, display area, smart density, overlap, distribution, special danmaku, and occlusion. It will not change extension language, hotkeys, providers, or other preferences, and will not delete user data.",
+    "restoreDefaultsSuccess": "Danmaku settings restored to defaults",
+    "restoreDefaultsFailed": "Failed to restore danmaku settings: {{message}}"
   },
   "configPage": {
     "copyShareCode": "Copy Share Code",
@@ -141,6 +148,7 @@
       "mediaQuery": "Video Node",
       "name": "Name",
       "pattern": "Pattern",
+      "patternRequired": "At least one pattern is required",
       "step": {
         "ai": "AI Configuration",
         "automation": "Automation",
@@ -150,7 +158,7 @@
         "create": "Add Config",
         "edit": "Edit {{name}}"
       },
-      "tooPermissive": "The match patterns are too permissive, it's recommended to use narrower patterns.",
+      "tooPermissive": "Match patterns are too broad, so AI matching is turned off.",
       "urlPatterns": "URL Patterns"
     },
     "goCreate": "Go create one",
@@ -158,6 +166,7 @@
       "error": "Import failed: {{message}}",
       "fileUpload": "Upload File",
       "hasIntegration": "Includes Integration",
+      "invalidCode": "This share code is not valid",
       "name": "Import Config",
       "presets": "Presets",
       "success": "Config imported"
@@ -182,15 +191,19 @@
       "exported": "Export successful",
       "exportError": "Export failed: {{message}}",
       "fetchError": "Failed to fetch danmaku: {{message}}",
-      "mounted_one": "Danmaku Mounted: {{name}} ({{count}})",
-      "mounted_other": "Danmaku Mounted: {{name}} ({{count}})",
+      "hidden": "Danmaku hidden",
+      "hiddenWithHotkey": "Danmaku hidden ({{hotkey}} to show)",
+      "mounted_one": "Mounted {{name}}: {{count}} comment",
+      "mounted_other": "Mounted {{name}}: {{count}} comments",
       "mountedMultiple_one": "Mounted {{count}} selected danmaku",
       "mountedMultiple_other": "Mounted {{count}} selected danmaku",
       "mountError": "Failed to mount danmaku: {{message}}",
-      "refetchKeptStored": "Fetched {{fetched}} comments, fewer than the {{stored}} already saved. Kept the saved danmaku.",
-      "refreshed_one": "Danmaku Refreshed: {{name}} ({{count}})",
-      "refreshed_other": "Danmaku Refreshed: {{name}} ({{count}})",
+      "refetchKeptStored_one": "Fetched {{fetched}} comment, fewer than the {{stored}} already saved. Kept the saved danmaku.",
+      "refetchKeptStored_other": "Fetched {{fetched}} comments, fewer than the {{stored}} already saved. Kept the saved danmaku.",
+      "refreshed_one": "Refreshed {{name}}: {{count}} comment",
+      "refreshed_other": "Refreshed {{name}}: {{count}} comments",
       "refreshingDanmaku": "Refreshing danmaku",
+      "shown": "Danmaku shown",
       "unmounted": "Danmaku Unmounted",
       "xmlExported": "Export XML successful",
       "xmlExportError": "Failed to export XML: {{message}}"
@@ -204,11 +217,11 @@
       "blocked": "Blocked",
       "collapsed_one": "Collapsed: {{label}} ×{{count}}",
       "collapsed_other": "Collapsed: {{label}} ×{{count}}",
-      "collapseHead_one": "Collapse head: {{label}} ×{{count}}",
-      "collapseHead_other": "Collapse head: {{label}} ×{{count}}",
+      "collapseHead_one": "Shown as {{label}} ×{{count}}",
+      "collapseHead_other": "Shown as {{label}} ×{{count}}",
       "duplicate": "Duplicate",
-      "density": "Density filtered",
-      "whitelist": "White list"
+      "whitelist": "Whitelist",
+      "density": "Density filtered"
     },
     "enable": "Show Danmaku",
     "exportBackup": "Export Backup",
@@ -240,12 +253,12 @@
     "liveCount": "Show combo counter",
     "liveCountHint": "Counter increases as repeats arrive. Turn off to show the total number of similar comments upfront.",
     "maxDedupe": "Max identical",
-    "maxDedupeHint": "Only dedupe comments that appear less than this number of times.",
+    "maxDedupeHint": "Only dedupe comments that appear at most this many times.",
     "minCount": "Minimum copies",
     "minCountHint": "Only trigger collapse when at least this many comments arrive. Applies for both auto-collapse and patterns.",
     "noActiveFilters": "No active filters",
     "noPatterns": "No patterns",
-    "noWhiteList": "No White List",
+    "noWhiteList": "No whitelist rules",
     "patternModeSubtitle": "Collapse multiple comments into one comment.",
     "patternModeTitle": "Collapse",
     "patternsHeader": "Patterns",
@@ -261,15 +274,15 @@
     "validation": {
       "duplicate": "Pattern already exists",
       "duplicateLabel": "Label already exists",
-      "invalidRegex": "Invalid regex {{message}}",
+      "invalidRegex": "Invalid regex: {{message}}",
       "labelEmpty": "Label cannot be empty",
       "patternEmpty": "Pattern cannot be empty"
     },
-    "whiteListHeader": "White List",
+    "whiteListHeader": "Whitelist",
     "whiteListHint": "Rules listed here will not be collapsed or deduped."
   },
   "danmakuPage": {
-    "confirmDeleteMessage": "Are you sure to delete the selected Danmaku?"
+    "confirmDeleteMessage": "Delete the selected danmaku?"
   },
   "debugPage": {
     "segmentation": {
@@ -286,22 +299,29 @@
   "error": {
     "unknown": "Something went wrong."
   },
+  "floatingButton": {
+    "label": "Open Danmaku Anywhere",
+    "tooltip": "Danmaku Anywhere. Right-click for quick actions"
+  },
   "form": {
     "precision": {
       "alt": "Alt",
       "drag": "Drag / Wheel",
       "shift": "Shift"
     },
+    "required": "This field is required",
     "resetToZero": "Reset to 0"
   },
   "importPage": {
+    "alreadyImported_one": "Skipped {{count}} file already in the library",
+    "alreadyImported_other": "Skipped {{count}} files already in the library",
     "confirm": "Confirm Import",
     "help": {
       "dragNDrop1": "Drag and drop files here",
       "dragNDrop2": "Or click to select files"
     },
     "import": "Import Danmaku",
-    "importDesc": "When importing local danmaku, file names will be used as episode names. Supports .json, .xml, and .bin (Bilibili protobuf) files",
+    "importDesc": "When importing local danmaku, file names will be used as episode names. Supports .json, .xml, and .bin (Bilibili protobuf) files.",
     "importError_one": "Failed to import {{count}} file",
     "importError_other": "Failed to import {{count}} files",
     "importFolder": "Import Danmaku Folder",
@@ -311,8 +331,8 @@
     "parseError": "Failed to parse file",
     "pickFiles": "Pick files",
     "pickFolder": "Pick folder",
-    "skipped_one": "Skpped {{count}} file",
-    "skipped_other": "Skpped {{count}} files",
+    "skipped_one": "Skipped {{count}} file",
+    "skipped_other": "Skipped {{count}} files",
     "urlDialog": {
       "errors": {
         "fetchFailed": "Failed to fetch the URL.",
@@ -331,7 +351,8 @@
     "willImport_other": "Will import {{count}} files"
   },
   "infoPanel": {
-    "comments": "comments",
+    "comments_one": "comment",
+    "comments_other": "comments",
     "hide": "Hide info panel",
     "occlusion": {
       "error": "Occlusion error",
@@ -360,15 +381,14 @@
     },
     "alert": {
       "aiDisabledTooPermissive": "AI is disabled because the match pattern is too permissive",
-      "AIResult": "AI Parsing Result: {{title}}",
-      "matchedLocalDanmaku": "Matched local danmaku",
+      "finding": "Finding danmaku for {{name}}…",
       "matchError": "Failed to match episode: {{message}}",
-      "noEpisodeMatched": "No episode matched for {{title}}: {{cause}}",
+      "noEpisodeFound": "No episode found for {{title}}",
       "noIntegration": "Integration policy not configured",
       "openSearch": "Open search page",
-      "search": "Searching for anime: {{title}}",
-      "usingAI": "Using AI to parse show information",
-      "usingMode": "Using Mode: {{mode}}"
+      "sourceUnreachable": "Couldn't reach {{source}}",
+      "sourceUnreachableUnnamed": "Couldn't reach the danmaku source",
+      "usingAI": "Using AI to parse show information"
     },
     "autoMode": "Auto Mode",
     "createConfig": "Create Integration",
@@ -452,11 +472,21 @@
       "noMountConfig": "No mount config for this site",
       "pageUnsupported": "This page cannot host danmaku"
     },
+    "clearFilter": "Clear filter",
     "confirmDeleteMultiple_one": "Are you sure you want to delete {{count}} item?",
     "confirmDeleteMultiple_other": "Are you sure you want to delete {{count}} items?",
+    "emptyMountHint": "Search for the show, download an episode, then click it to mount it on this video.",
+    "episodeCount": {
+      "downloaded_one": "{{count}} episode downloaded",
+      "downloaded_other": "{{count}} episodes downloaded",
+      "downloadedOfTotal_one": "{{fetched}} of {{count}} episode downloaded",
+      "downloadedOfTotal_other": "{{fetched}} of {{count}} episodes downloaded"
+    },
     "goSearch": "Go search",
     "importDanmaku": "Import danmaku (or drag and drop)",
-    "libraryEmpty": "The Library is empty...",
+    "libraryEmpty": "The library is empty…",
+    "noMatchesFor": "No matches for \"{{query}}\"",
+    "noMatchesForSources": "No danmaku from the selected sources",
     "or": "or",
     "pageTitle": "Library",
     "selectedCount_one": "{{count}} selected",
@@ -483,8 +513,8 @@
   },
   "optionsPage": {
     "account": {
-      "signInDescription": "Back up configs and danmaku to the cloud",
-      "signInToSync": "Sign in to sync"
+      "signInDescription": "Back up your settings to the cloud. Danmaku is not included.",
+      "signInToBackUp": "Sign in to back up settings"
     },
     "advanced": {
       "behavior": "Behavior",
@@ -499,12 +529,13 @@
       "nameHelper": "The user name is public and does not need to be unique",
       "password": "Password",
       "passwordHelper": "Must be at least 6 characters",
-      "signIn": "Sign In",
-      "signOut": "Sign Out",
-      "signUp": "Sign Up",
+      "signIn": "Sign in",
+      "signOut": "Sign out",
+      "signUp": "Sign up",
       "signUpSuccess": "Sign up successful"
     },
-    "autoBookmark": "Auto bookmark shows when preloading",
+    "autoBookmark": "Follow automatically when preloading the next episode",
+    "autoBookmarkDesc": "Follow a show once you are halfway through an episode, so the next episode's danmaku is preloaded.",
     "backup": {
       "alert": {
         "exportSuccess": "Export success",
@@ -515,12 +546,17 @@
       "cloudBackupCreate": "Create Cloud Backup",
       "cloudCreateError": "Cloud backup failed: {{message}}",
       "cloudCreateSuccess": "Cloud backup created",
-      "cloudDescription": "Sync your settings to the cloud. Up to 3 revisions are kept.",
+      "cloudDescription": "Save a copy of your settings to the cloud when you choose. Danmaku is not included. The last 3 backups are kept.",
       "cloudDownloadError": "Failed to download cloud backup: {{message}}",
       "cloudKeepsLast": "Keeps last 3",
       "cloudListError": "Failed to load cloud backups.",
       "cloudRevisions": "Revisions",
       "cloudSignInTitle": "Sign in to enable cloud backup",
+      "error": {
+        "invalidFormat": "This backup file is damaged or was not made by Danmaku Anywhere.",
+        "notJson": "This file is not a Danmaku Anywhere backup.",
+        "unsupportedVersion": "This version of Danmaku Anywhere cannot read this backup format."
+      },
       "export": "Export",
       "exportRowDesc": "Save settings to a JSON file",
       "exportToFile": "Save to File",
@@ -533,11 +569,15 @@
       "localBackup": "Local Backup",
       "noCloudBackups": "No cloud backups yet. Create one to get started.",
       "restoreConfirmDesc": "Restoring this backup will overwrite your current settings. Are you sure you want to proceed?",
-      "restoreConfirmTitle": "Restore Settings?"
+      "restoreConfirmTitle": "Restore Settings?",
+      "store": {
+        "extensionOptions": "General settings",
+        "localMatchingRule": "Naming rules"
+      }
     },
     "danmakuSource": {
       "macCms": {
-        "baseUrl": "Mac CMS API Base URL",
+        "baseUrl": "VOD API base URL",
         "baseUrlHelper": "The options in the list may stop working at any time. You can also enter the URL manually.",
         "danmuicuBaseUrl": "Danmaku API Base URL",
         "help": {
@@ -553,18 +593,18 @@
         "confirm1": "Are you sure you want to wipe all danmaku, seasons, and mapping data? This action cannot be undone.",
         "confirm2": "Are you sure? This action cannot be undone.",
         "description": "Permanently delete all stored danmaku. This cannot be undone.",
-        "includeCustomEpisodes": "Include custom episodes"
+        "includeCustomEpisodes": "Also delete local danmaku"
       }
     },
     "debugLogging": "Debug logging",
     "debugLoggingDesc": "Verbose logs in the developer console.",
-    "enableAnalytics": "Enable anonymous analytics",
-    "enableAnalyticsDesc": "Share opt-in usage stats to guide development.",
+    "enableAnalytics": "Share usage data with Microsoft Clarity",
+    "enableAnalyticsDesc": "Records how you use the extension, including on pages where its in-page controls run, and sends it to Microsoft Clarity. Turn this off to stop sending it.",
     "enableFullscreenInteraction": "Enable fullscreen interaction",
     "enableFullscreenInteractionDesc": "Keep danmaku controls reachable in fullscreen.",
     "help": {
       "feedback": "Provide feedback",
-      "reportBug": "Report Bug"
+      "reportBug": "Report a bug"
     },
     "hotkeys": {
       "addHotkey": "Add Hotkey",
@@ -577,7 +617,8 @@
       "unmountComments": "Unmount comments"
     },
     "infoPanel": {
-      "enabled": "Show info panel"
+      "enabled": "Show info panel",
+      "enabledDesc": "Overlay a card on the video with the mounted episode and comment count."
     },
     "language": "Language",
     "matchLocalDanmaku": "Enable matching local Danmaku",
@@ -586,7 +627,7 @@
       "aboutSubtitle": "Help, credits, licenses",
       "aboutSupport": "About & Support",
       "advancedSubtitle": "Diagnostics, experimental flags",
-      "cloudReady": "Cloud sync ready",
+      "cloudReady": "Cloud backup available",
       "data": "Data",
       "general": "General",
       "localOnly": "Local backup",
@@ -610,20 +651,28 @@
     "player": {
       "inPlayerControls": "In-player controls",
       "showDanmakuTimeline": "Show danmaku density",
-      "showDanmakuTimelineDesc": "Overlay a comment-density timeline above the scrubber.",
+      "showDanmakuTimelineDesc": "Draw a comment-density graph along the bottom edge of the video.",
       "showSkipButton": "Show skip button (OP/ED)",
       "showSkipButtonDesc": "Surface a one-tap skip during intro and outro segments."
     },
-    "restrictInitiatorDomain": "Limit DNR initiator domains to this extension",
+    "restrictInitiatorDomain": "Only modify requests made by this extension",
     "restrictInitiatorDomainDesc": "Restrict network-rule scope to this extension.",
     "retentionPolicy": {
       "alert": {
-        "nDanmakuDeleted_one": "{{count}} danmaku deleted",
-        "nDanmakuDeleted_other": "{{count}} danmaku deleted"
+        "nEpisodesDeleted_one": "{{count}} episode deleted",
+        "nEpisodesDeleted_other": "{{count}} episodes deleted",
+        "nothingToPurge": "No episodes are past the {{days}}-day limit"
       },
-      "deleteCommentsAfter": "Delete comments older than",
+      "deleteEpisodesAfter": "Delete episodes not updated in",
       "enabled": "Enable Retention Policy",
-      "enabledDesc": "Automatically purge comments older than the limit below.",
+      "enabledDescEpisodes": "Automatically delete downloaded episodes not updated within the limit below.",
+      "purgeConfirm": {
+        "confirm": "Purge",
+        "content_one": "Delete {{count}} downloaded episode not updated within the {{days}}-day limit, along with their danmaku? Imported episodes are kept. This cannot be undone.",
+        "content_other": "Delete {{count}} downloaded episodes not updated within the {{days}}-day limit, along with their danmaku? Imported episodes are kept. This cannot be undone.",
+        "title": "Purge old episodes"
+      },
+      "purgeDisabled": "Turn on the retention policy to purge old episodes.",
       "purgeNow": "Purge Now",
       "title": "Retention policy",
       "tooltip": {
@@ -636,26 +685,36 @@
     "showFloatingButtonDesc": "Show the quick-action button on video pages.",
     "submit": "Submit",
     "theme": {
-      "colorMode": {
-        "dark": "Dark",
-        "light": "Light",
-        "system": "System"
-      }
+      "switchToDark": "Switch to dark theme",
+      "switchToLight": "Switch to light theme",
+      "switchToSystem": "Switch to system theme"
     },
     "uploadDebugData": "Submit Debug Data",
     "uploadDebugDataDesc": "Upload diagnostics and copy a reference ID.",
     "uploadDebugDataSuccess": "Submitted {{ id }}"
   },
+  "optionsUpgrade": {
+    "failed": "Your settings could not be updated for this version. They have been kept as they were.",
+    "openToRetry": "Danmaku Anywhere could not update its settings. Open it to try again."
+  },
   "providers": {
+    "add": {
+      "dandanplay": "DanDanPlay-compatible server",
+      "dandanplayHint": "A self-hosted or third-party server",
+      "manifest": "Custom source from manifest",
+      "manifestHint": "Advanced: write the source as JSON",
+      "vod": "VOD",
+      "vodHint": "Danmaku API of a MacCMS video site"
+    },
     "alert": {
-      "created": "Provider created",
-      "deleted": "Provider deleted",
-      "updated": "Provider updated"
+      "created": "Source created",
+      "deleted": "Source deleted",
+      "updated": "Source updated"
     },
     "attention": {
+      "optionalTitle": "Optional sign-in",
       "signIn": "Sign in",
-      "signInHint": "Sign in for complete danmaku",
-      "title": "Needs attention"
+      "signInHint": "Sign in for complete danmaku"
     },
     "catalog": {
       "checked": {
@@ -676,20 +735,19 @@
       "version": "v{{version}}"
     },
     "delete": {
-      "manifestMessage": "Delete \"{{name}}\"? This removes the manifest and its instances; saved danmaku for it can no longer be refreshed.",
+      "confirm": "Delete \"{{name}}\"? Seasons you follow from it are unfollowed, and its saved seasons can no longer be refreshed. Adding the source again does not bring the follows back.",
+      "manifestConfirm": "Delete \"{{name}}\"? This removes the source manifest and its instances. Seasons you follow from it are unfollowed, and its saved danmaku can no longer be refreshed.",
       "manifestTitle": "Delete custom source",
-      "message": "Are you sure you want to delete \"{{name}}\"? Once a provider is deleted, the season and episodes associated with it will no longer be able to be refreshed.",
-      "title": "Delete Provider"
+      "title": "Delete Source"
     },
     "editor": {
       "addItem": "Add",
       "builtinServerLocked": "The server of a built-in source cannot be changed. To use another server, add an instance instead.",
       "manifest": {
-        "author": "Author a manifest",
         "beta": "Beta",
-        "createTitle": "Author manifest",
+        "createTitle": "New source manifest",
         "duplicate": "Duplicate",
-        "editTitle": "Edit manifest",
+        "editTitle": "Edit source manifest",
         "importFailed": "Manifest saved, but creating its source failed: {{message}}. Import it from the source list.",
         "invalidJson": "Invalid JSON",
         "invalidManifest": "Manifest does not match the schema",
@@ -704,9 +762,9 @@
         "viewTitle": "Manifest source"
       },
       "name": "Name",
-      "specError": "Failed to load provider settings. Some fields are missing, saving now would drop them.",
+      "specError": "Failed to load source settings. Some fields are missing, saving now would drop them.",
       "testRun": {
-        "danmakuCount_one": "{{count}} comments fetched",
+        "danmakuCount_one": "{{count}} comment fetched",
         "danmakuCount_other": "{{count}} comments fetched",
         "episodes": "Episodes (pick one for danmaku)",
         "keyword": "Search keyword",
@@ -715,10 +773,10 @@
         "title": "Test run"
       },
       "title": {
-        "add": "Add Provider",
-        "addDanDanPlay": "Add DanDanPlay Compatible Provider",
-        "addMacCms": "Add VOD Provider",
-        "edit": "Edit Provider: {{name}}"
+        "add": "Add Source",
+        "addDanDanPlay": "Add DanDanPlay Compatible Source",
+        "addMacCms": "Add VOD Source",
+        "edit": "Edit Source: {{name}}"
       },
       "validation": {
         "integer": "Must be a whole number",
@@ -728,8 +786,16 @@
         "minLength": "Must be at least {{min}} characters",
         "pattern": "Must match the pattern {{pattern}}",
         "required": "This field is required",
+        "requiredAlternatives": "Fill in {{fields}}",
         "url": "Not a valid URL"
       }
+    },
+    "error": {
+      "danmakuUnsupported": "{{name}} cannot fetch danmaku",
+      "episodesUnsupported": "{{name}} cannot list episodes",
+      "searchUnsupported": "{{name}} cannot search",
+      "seasonRefreshUnsupported": "{{name}} cannot refresh season details",
+      "sourceUnavailable": "{{name}} can't be used right now"
     },
     "filter": {
       "placeholder": "Filter sources"
@@ -740,7 +806,7 @@
       "builtIn": "Built-in",
       "custom": "Custom",
       "empty": "No matching sources",
-      "instances_one": "{{count}} instances",
+      "instances_one": "{{count}} instance",
       "instances_other": "{{count}} instances",
       "none": "No sources installed",
       "reorder": "Reorder",
@@ -750,7 +816,7 @@
     "instance": {
       "defaultName": "Self-hosted DanDanPlay"
     },
-    "name": "Danmaku Providers",
+    "name": "Danmaku sources",
     "updates": {
       "failed": "Update failed",
       "title": "Updates available",
@@ -762,14 +828,15 @@
   },
   "searchPage": {
     "alert": {
-      "mappingFailed": "Failed to save mapping：{{message}}",
+      "mappingFailed": "Failed to save mapping: {{message}}",
       "mappingSuccess": "Mapping saved successfully"
     },
     "episodesHint": "Tap an episode to download. Downloaded ones show in your library.",
     "epsCount_one": "{{count}} ep",
     "epsCount_other": "{{count}} eps",
     "error": {
-      "noProviders": "No danmaku sources enabled, please enable in settings",
+      "network": "Couldn't reach {{name}}. Check your connection and try again.",
+      "noProviders": "No danmaku sources enabled. Enable one on the Sources page.",
       "noResultFound": "No results found, try a different search term"
     },
     "filterEpisodes": "Filter episodes…",
@@ -780,12 +847,15 @@
     "moreSources": "More sources",
     "parse": {
       "alert": {
-        "importSuccess": "Import successful",
-        "parseError": "Parse failed"
+        "importSuccess": "Import successful"
       },
+      "failed": "Couldn't parse this URL",
       "import": "Download Danmaku",
+      "networkError": "Couldn't reach the site. Check your connection and try again.",
+      "noSource": "No source can read this link",
       "parse": "Parse",
       "parsed": "Parsed",
+      "searchInstead": "Search by title instead",
       "urlDetected": "URL detected. Parsing instead of searching."
     },
     "resultsCount_one": "{{count}} result",
@@ -798,10 +868,11 @@
       "sources": "Sources",
       "title": "Settings"
     },
+    "signInRequired": "{{name}} needs you to sign in to search",
     "title": "Search",
     "titleMapping": "Map Title",
     "titleMappingDialog": {
-      "confirmation": "Map `{{original}}` to `{{mapped}}` ?",
+      "confirmation": "Map \"{{original}}\" to \"{{mapped}}\"?",
       "searchOnly": "No, just search"
     }
   },
@@ -809,46 +880,52 @@
     "noAnimeFound": "Nothing to select from",
     "selectAnime": "Multiple matches found for {{name}}, please select"
   },
+  "skipButton": {
+    "skipTo": "Skip to {{time}}"
+  },
   "stylePage": {
     "customCssDescription": "Custom CSS rules applied to every danmaku. These override other style settings.",
     "distribution": "Distribution",
     "font": "Font",
     "interval": "Emission Interval",
-    "density": "Smart Danmaku Density",
+    "maxOnScreen": "Max on screen",
     "name": "Danmaku Settings",
     "occlusion": "Render behind people",
+    "occlusionCaption": "Works on live-action video. The built-in People model is not made for anime.",
     "occlusionConfidence": "Confidence threshold",
     "occlusionEdgeSoftness": "Edge softness",
     "occlusionError": {
+      "crossOrigin": "Occlusion turned off: this video is served from another site that does not allow its frames to be read.",
+      "drm": "Occlusion turned off: this video is DRM-protected and its frames cannot be read.",
       "init": "Failed to load the occlusion model.",
-      "segment": "Occlusion ran but produced no result.",
-      "taint": "Occlusion turned off: this video is protected (cross-origin or DRM) and cannot be read.",
+      "segmentFailing": "Occlusion stopped: the model kept failing on this video.",
       "unavailable": "Occlusion is not supported on this video.",
       "unreadable": "Occlusion turned off: the extension could not read this video's frames. The site may be blocking the extra request.",
-      "webgpu": "The anime occlusion model needs a WebGPU-capable browser. Switch to the People model or update your browser."
+      "webgpuUnavailable": "This occlusion model needs WebGPU, and the GPU is not available to this browser. Switch to the People model."
     },
+    "occlusionExperimental": "Experimental",
     "occlusionModels": {
       "active": "Active",
-      "builtIn": "Built in",
+      "builtIn": "Built-in",
       "delete": "Delete",
       "deleteError": "Failed to delete model",
       "download": "Download",
       "downloaded": "Downloaded ({{size}})",
       "downloadError": "Failed to download model",
       "empty": "No models available",
-      "needsWebgpu": "Needs a WebGPU-capable browser",
       "notDownloaded": "Not downloaded",
       "notDownloadedSize": "Not downloaded ({{size}})",
       "refresh": "Refresh",
       "refreshError": "Failed to refresh models",
-      "title": "Models"
+      "title": "Models",
+      "webgpuUnavailable": "Needs WebGPU, and the GPU is not available to this browser"
     },
     "occlusionQuality": "Performance",
     "occlusionQualityHigh": "High",
     "occlusionQualityLow": "Low",
     "occlusionQualityMedium": "Medium",
     "occlusionStatus": {
-      "downloading": "Downloading the anime occlusion model. This happens once and may take a while."
+      "downloadingModel": "Downloading the occlusion model. This happens once and may take a while."
     },
     "offset": "Time Offset",
     "opacity": "Opacity",
@@ -871,21 +948,23 @@
     "tooltip": {
       "distribution": "Random: danmaku will be distributed uniformly. Order: danmaku will fill the screen from top to bottom.",
       "interval": "Lower value means more densely packed danmaku. May cause performance issues if set too low.",
-      "density": "Smoothly filters crowded moments using estimated visual load. Lower values favor clarity; higher values keep more comments. Dropped comments are not replayed later, and similar spam is preferentially collapsed.",
+      "maxOnScreen": "The maximum number of danmaku that can be displayed on the screen at the same time.",
       "occlusion": "Experimental. Hides danmaku behind people in the video. May affect performance on slower devices.",
       "occlusionConfidence": "Higher only hides danmaku over high-confidence person pixels (tighter). Lower hides more aggressively.",
       "occlusionEdgeSoftness": "Blurs the mask edge so danmaku fade behind people instead of clipping sharply.",
       "occlusionQuality": "Higher updates the mask more often at higher resolution, using more CPU/GPU.",
-      "offsetScrubber": "Drag horizontally or use scroll wheel to adjust, double-click to manual entry. Positive values make danmaku appear later, negative values make danmaku appear earlier.",
+      "offsetScrubber": "Drag horizontally or use the scroll wheel to adjust, or double-click to type a value. Positive values make danmaku appear later, negative values make danmaku appear earlier.",
       "overlap": "Higher values reduce the distance between danmaku, allowing more danmaku to be displayed on the screen at the same time, at the cost of overlapping. Set to 0 to disable overlap.",
       "safeZone": {
         "y": "Y-axis (up and down) display range"
       },
       "specialDanmaku": "When off, danmaku will be shown as normal scrolling danmaku",
-      "trackHeight": "Higher values makes danmaku farther apart"
+      "trackHeight": "Higher values make danmaku farther apart",
+      "density": "Smoothly filters crowded moments using estimated visual load. Lower values favor clarity; higher values keep more comments. Dropped comments are not replayed later, and similar spam is preferentially collapsed."
     },
     "trackHeight": "Track Height",
-    "useCustomCss": "Use Custom CSS"
+    "useCustomCss": "Use Custom CSS",
+    "density": "Smart Danmaku Density"
   },
   "tabs": {
     "aiProviders": "AI Providers",
@@ -894,7 +973,7 @@
     "debug": "Debug",
     "integration": "Integration",
     "mount": "Library",
-    "providers": "Providers",
+    "providers": "Sources",
     "search": "Search",
     "selector": "Selector",
     "style": "Danmaku Settings",
@@ -905,8 +984,12 @@
     "deleteConfirm_other": "Are you sure you want to delete {{count}} title mappings?",
     "deleteConfirmOne": "Are you sure you want to delete this title mapping?",
     "empty": "No title mappings found.",
-    "noSeasons": "No options for the selected provider",
+    "emptyHint": "A title mapping links a video page title to a show. One is saved when a video is matched to a show, automatically or when you pick a search result on the page, so later episodes match straight away.",
+    "noSeasons": "No options for the selected source",
     "title": "Title Mappings",
     "unmapped": "Unmapped"
+  },
+  "toast": {
+    "region": "Notifications"
   }
 }
