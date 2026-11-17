@@ -124,7 +124,10 @@ jobs:
 
           git read-tree --reset -u "$merged_tree"
 
-          # Restore every fork-owned workflow exactly as it existed before sync.
+          # Remove the upstream workflow set completely before restoring the fork's
+          # exact pre-sync workflow set. checkout alone does not delete upstream-only
+          # workflow files that are absent from the customization branch.
+          git rm -r --force --ignore-unmatch .github/workflows
           git checkout "$before" -- .github/workflows
           printf '%s\n' "$upstream_sha" > .github/upstream-sync-commit
           git add -A
