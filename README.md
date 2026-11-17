@@ -182,37 +182,50 @@
 
 本仓库在 `master` 分支配置了 `Sync Official Upstream`：
 
-1. 每周一按 GitHub Actions 定时任务运行，也可以手动触发。
-2. 拉取官方上游 `master`。
-3. 根据记录的上次同步提交，将上游变更合入 `danmaku-customizations`。
-4. 保留本 fork 自己的 `.github/workflows`，避免上游工作流覆盖定制构建流程。
-5. 如果有源码更新，则推送定制分支并启动预览构建。
+1. 每周一由 GitHub Actions 定时运行，也可以手动触发。
+2. 从官方仓库 `Danmaku-Anywhere/danmaku-anywhere` 拉取最新 `master`。
+3. 读取 `.github/upstream-sync-commit` 记录的上次同步提交，将上游代码合入 `danmaku-customizations`。
+4. 保留定制分支自己的 `.github/workflows`，不把官方工作流覆盖到 fork。
+5. 仅当同步产生源码变化时，推送定制分支并启动预览构建。
 
-预览构建会安装依赖、构建 workspace 包、运行密度算法测试、检查扩展 TypeScript 类型、构建 Chrome 扩展，并验证 ZIP 根目录中存在 Manifest V3 的 `manifest.json`。成功后更新 `smart-danmaku-density-preview` 预览版 Release，并清理同一 Release 中的旧附件。
+预览构建会安装依赖、构建 workspace 包、运行智能密度算法测试、检查扩展 TypeScript 类型、构建 Chrome 扩展，并验证 ZIP 根目录中存在有效的 Manifest V3 `manifest.json`。全部通过后，更新 `smart-danmaku-density-preview` Release，并删除同一 Release 中的旧附件。
 
-### 当前同步故障（2026-11-18）
+### 同步故障修复记录（2026-11-18）
 
-截至本次 README 更新，连续五次周一同步运行（2026-10-19、10-26、11-02、11-09、11-16）都失败在：
+**此前的连续五次周一同步失败已经修复。** 失败运行发生于 2026-10-19、10-26、11-02、11-09 和 11-16。
 
-`Merge upstream changes into the customization branch`
+#### 原因
 
-已确认的情况：
+原脚本使用 `git merge-tree --write-tree -X ours`，但 fork 删除了若干上游仍有更新的 GitHub Actions 工作流文件。Git 将这些情况判定为删除/修改冲突；同时，原脚本通过命令替换捕获输出并在严格 shell 模式下执行，冲突信息没有被正确展示，导致问题难以定位。
 
-- Checkout、配置 Git 身份和拉取上游均成功。
-- 失败发生在 `git merge-tree --write-tree` 合并步骤，退出码为 1。
-- 后续推送定制分支和启动预览构建的步骤因此被跳过。
-- 自动化会重试失败任务一次；重试仍失败时创建通知 Issue。
-- 当前日志没有把合并冲突详情输出到 Actions 日志，因此尚不能仅凭日志确认具体冲突文件。
+移除工作流目录冲突后，真正需要人工整合的源码文件只有三个：
 
-这与扩展构建失败是两回事。上游近期对仓库结构、后端目录和发布管理器等内容进行了调整，这些变更可能与 fork 保留的修改发生冲突；具体冲突位置仍需修复同步脚本的诊断输出后确认。
+- `DanmakuStylesForm.tsx`：上游新增的人物遮挡实验选项与 fork 的智能密度控件。
+- `toastStore.ts`：上游新增的按 ID 更新通知、加载状态和主动关闭能力，与 fork 的提示时长调整。
+- 英文翻译文件：上游文案更新与 fork 的密度、恢复默认设置文案。
+
+#### 修复方式
+
+- 同步时临时以“上次同步的上游版本”作为工作流目录的合并输入，避免官方工作流改动与 fork 自己的 CI 互相冲突。
+- 合并完成后，先移除合并树中的工作流目录，再准确恢复定制分支原有的工作流集合，防止把上游新增的 workflow 文件意外带入推送。
+- 将三个源码冲突文件基于当前上游版本重新整合：保留上游新增行为，同时叠加 fork 的定制功能。
+- 仅在这次已审阅的旧同步基准迁移时使用一次性冲突偏好；完成迁移后已从工作流中移除。今后的源码合并使用普通 Git 合并，不会静默选择任意一边；遇到新冲突会输出文件诊断并停止，等待人工处理。
+- 将上游地址统一为官方组织仓库 `Danmaku-Anywhere/danmaku-anywhere`。
+
+#### 验证结果
+
+- **上游同步：** GitHub Actions run [#16](https://github.com/WuLinLee/danmaku-anywhere/actions/runs/44128815751) 成功，已将同步标记推进到上游提交 `6f3bad135023415bc713e1fc0cc3907f0d2ef120`，并成功推送 `danmaku-customizations`。
+- **常规同步检查：** 随后移除一次性迁移逻辑，再次运行的 [#17](https://github.com/WuLinLee/danmaku-anywhere/actions/runs/44129081970) 成功，说明没有新上游提交时的检查路径也正常。
+- **预览构建：** [run #33](https://github.com/WuLinLee/danmaku-anywhere/actions/runs/44129129553) 全部成功，包括 workspace 构建、智能密度测试、扩展类型检查、Chrome 构建、ZIP 校验、上传和 Release 更新。
+- **预览包：** [smart-danmaku-density-preview](https://github.com/WuLinLee/danmaku-anywhere/releases/tag/smart-danmaku-density-preview) 已更新，当前附件为 `smart-danmaku-density-chrome.zip`（27,266,224 bytes）。
+
+这修复的是自动同步和预览发布链路，不代表以后上游每次改动都一定能无冲突合并。今后如出现新的源码冲突，工作流会明确失败并输出冲突路径，而不是默默丢弃上游或 fork 的代码。
 
 查看实时状态：
 
 - [上游同步工作流](https://github.com/WuLinLee/danmaku-anywhere/actions/workflows/weekly-smart-density-sync.yml)
 - [定制版构建工作流](https://github.com/WuLinLee/danmaku-anywhere/actions/workflows/smart-density-build.yml)
 - [自动失败通知 Issues](https://github.com/WuLinLee/danmaku-anywhere/issues)
-
-在同步故障修复前，不要假设每周预览版会自动跟进官方上游。
 
 ## 本地开发与构建
 
