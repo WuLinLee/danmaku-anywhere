@@ -1,5 +1,6 @@
 import {
   Box,
+  Chip,
   Collapse,
   debounce,
   Stack,
@@ -13,7 +14,7 @@ import { DocIcon } from '@/common/components/DocIcon'
 import { getScrollBarProps } from '@/common/components/layout/ScrollBox'
 import { SegmentedTabs } from '@/common/components/SegmentedTabs'
 import { SettingsBlock } from '@/common/components/SettingsBlock'
-import { IS_CHROME } from '@/common/constants'
+import { IS_CHROME, IS_OCCLUSION_SUPPORTED } from '@/common/constants'
 import { usePlatformInfo } from '@/common/hooks/usePlatformInfo'
 import { useResetForm } from '@/common/hooks/useResetForm'
 import type { DanmakuOptions } from '@/common/options/danmakuOptions/constant'
@@ -415,7 +416,7 @@ export const DanmakuStylesForm = ({
                 label={t('stylePage.offset', 'Time Offset')}
                 tooltip={t(
                   'stylePage.tooltip.offsetScrubber',
-                  'Drag horizontally or use scroll wheel to adjust. Double-click to manual entry. Positive values make danmaku appear later, negative values earlier.'
+                  'Drag horizontally or use the scroll wheel to adjust, or double-click to type a value. Positive values make danmaku appear later, negative values make danmaku appear earlier.'
                 )}
                 value={field.value}
                 onChange={(newValue) => field.onChange(newValue)}
@@ -504,7 +505,7 @@ export const DanmakuStylesForm = ({
                 label={t('stylePage.trackHeight', 'Track Height')}
                 tooltip={t(
                   'stylePage.tooltip.trackHeight',
-                  'Higher values makes danmaku farther apart'
+                  'Higher values make danmaku farther apart'
                 )}
                 value={field.value}
                 onChange={(_e, newValue) => field.onChange(newValue as number)}
@@ -525,7 +526,7 @@ export const DanmakuStylesForm = ({
                 label={t('stylePage.density', 'Smart Danmaku Density')}
                 tooltip={t(
                   'stylePage.tooltip.density',
-                  'Lower values prefer a clearer picture; higher values preserve more comments. Filtering only becomes stronger in crowded moments, with no delayed catch-up.'
+                  'Smoothly filters crowded moments using estimated visual load. Lower values favor clarity; higher values keep more comments. Dropped comments are not replayed later, and similar spam is preferentially collapsed.'
                 )}
                 value={field.value}
                 onChange={(_e, newValue) => field.onChange(newValue as number)}
@@ -659,9 +660,28 @@ export const DanmakuStylesForm = ({
           />
         </Stack>
       </SettingsBlock>
-      {IS_CHROME && (
+      {IS_OCCLUSION_SUPPORTED && (
         <SettingsBlock
-          title={t('stylePage.occlusion', 'Render behind people')}
+          title={
+            <Stack
+              component="span"
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: 'center' }}
+            >
+              <span>{t('stylePage.occlusion', 'Render behind people')}</span>
+              <Chip
+                component="span"
+                size="small"
+                color="warning"
+                label={t('stylePage.occlusionExperimental', 'Experimental')}
+              />
+            </Stack>
+          }
+          subtitle={t(
+            'stylePage.occlusionCaption',
+            'Works on live-action video. The built-in People model is not made for anime.'
+          )}
           sx={{
             borderWidth: 3,
             borderStyle: 'solid',
