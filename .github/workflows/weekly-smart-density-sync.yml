@@ -93,10 +93,19 @@ jobs:
           # the customization branch's normal one-parent history.
           merge_ours_commit="$(git commit-tree "$merge_ours_tree" -p "$before" -m "temporary upstream sync input")"
 
-          # Do not use -X ours here: it can silently discard upstream changes in
-          # overlapping code hunks. Let Git merge clean changes; on a real source
-          # conflict, print the full path diagnostics and stop for manual review.
-          if merge_output="$(git merge-tree --write-tree --merge-base="$previous_upstream_sha" "$merge_ours_commit" "$upstream_sha" 2>&1)"; then
+          # This one-time bootstrap is allowed only for the exact upstream range
+          # whose conflicting UI/locale files were manually rebased onto the current
+          # upstream snapshot on the customization branch. No later sync may use it.
+          merge_strategy_args=()
+          if [ "$previous_upstream_sha" = "0e228ffe023e6624ecafaca3f705e8882a7a2b87" ] &&
+             [ "$upstream_sha" = "6f3bad135023415bc713e1fc0cc3907f0d2ef120" ]; then
+            echo "::notice::Using the reviewed one-time bootstrap merge preference for the manually reconciled files."
+            merge_strategy_args=(-X ours)
+          fi
+
+          # Future syncs use Git's normal merge. Never silently prefer either side:
+          # on an unexpected source conflict, print diagnostics and stop for review.
+          if merge_output="$(git merge-tree --write-tree --merge-base="$previous_upstream_sha" "${merge_strategy_args[@]}" "$merge_ours_commit" "$upstream_sha" 2>&1)"; then
             :
           else
             merge_status=$?
