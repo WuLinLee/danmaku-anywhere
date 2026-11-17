@@ -9,7 +9,9 @@ on:
 permissions:
   contents: write
 
-# Serialize preview publication so concurrent pushes cannot race to update the same Release.
+# This workflow is the single preview publisher for the customization branch.
+# The upstream-sync workflow dispatches it only after a successful source push.
+# Serialize publication so concurrent builds cannot race to update the same Release.
 concurrency:
   group: customized-preview-release
   cancel-in-progress: false
