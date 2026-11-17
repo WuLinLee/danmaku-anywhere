@@ -37,7 +37,7 @@ jobs:
 
       - name: Fetch official upstream
         run: |
-          git remote add upstream https://github.com/Mr-Quin/danmaku-anywhere.git
+          git remote add upstream https://github.com/Danmaku-Anywhere/danmaku-anywhere.git
           git fetch upstream master
 
       - name: Merge upstream changes into the customization branch
@@ -48,14 +48,21 @@ jobs:
           before="$(git rev-parse HEAD)"
           upstream_sha="$(git rev-parse upstream/master)"
 
-          # Track the upstream snapshot separately so the fork keeps its own workflows.
+          # Track the last upstream snapshot explicitly. This fork uses synthetic
+          # one-parent sync commits, so the marker is the authoritative merge base.
           if [ -f .github/upstream-sync-commit ]; then
             previous_upstream_sha="$(tr -d '\r\n' < .github/upstream-sync-commit)"
             if ! git cat-file -e "${previous_upstream_sha}^{commit}" 2>/dev/null; then
+              echo "::warning::The recorded upstream base is unavailable; falling back to the Git merge base."
               previous_upstream_sha="$(git merge-base "$before" "$upstream_sha")"
             fi
           else
             previous_upstream_sha="$(git merge-base "$before" "$upstream_sha")"
+          fi
+
+          if [ -z "$previous_upstream_sha" ] || ! git cat-file -e "${previous_upstream_sha}^{commit}" 2>/dev/null; then
+            echo "::error::Could not determine a valid previous upstream commit."
+            exit 1
           fi
 
           if [ "$previous_upstream_sha" = "$upstream_sha" ]; then
@@ -64,10 +71,51 @@ jobs:
             exit 0
           fi
 
-          merged_tree="$(git merge-tree --write-tree --merge-base="$previous_upstream_sha" -X ours "$before" "$upstream_sha")"
+          # The customization branch owns its GitHub Actions workflows. Neutralize
+          # that directory on the temporary merge input so upstream workflow edits
+          # cannot conflict with this fork's intentional removals/custom build.
+          # The real branch workflows are restored after the source merge.
+          tmp_index="$(mktemp)"
+          rm -f "$tmp_index"
+          trap 'rm -f "$tmp_index" "$tmp_index.lock"' EXIT
+
+          GIT_INDEX_FILE="$tmp_index" git read-tree "$before"
+          GIT_INDEX_FILE="$tmp_index" git rm -r --cached --ignore-unmatch .github/workflows >/dev/null
+          if git cat-file -e "${previous_upstream_sha}:.github/workflows" 2>/dev/null; then
+            GIT_INDEX_FILE="$tmp_index" git read-tree --prefix=.github/workflows/ "${previous_upstream_sha}:.github/workflows"
+          fi
+          merge_ours_tree="$(GIT_INDEX_FILE="$tmp_index" git write-tree)"
+          rm -f "$tmp_index" "$tmp_index.lock"
+          trap - EXIT
+
+          # git merge-tree accepts commits, so wrap the adjusted tree in a
+          # temporary commit. It is never pushed; the final sync commit keeps
+          # the customization branch's normal one-parent history.
+          merge_ours_commit="$(git commit-tree "$merge_ours_tree" -p "$before" -m "temporary upstream sync input")"
+
+          # Do not use -X ours here: it can silently discard upstream changes in
+          # overlapping code hunks. Let Git merge clean changes; on a real source
+          # conflict, print the full path diagnostics and stop for manual review.
+          if merge_output="$(git merge-tree --write-tree --merge-base="$previous_upstream_sha" "$merge_ours_commit" "$upstream_sha" 2>&1)"; then
+            :
+          else
+            merge_status=$?
+            echo "::error::Upstream source changes could not be merged automatically (exit $merge_status)." >&2
+            echo "Full git merge-tree diagnostics:" >&2
+            printf '%s\n' "$merge_output" >&2
+            exit "$merge_status"
+          fi
+
+          merged_tree="${merge_output%%$'\n'*}"
+          if ! git cat-file -e "${merged_tree}^{tree}" 2>/dev/null; then
+            echo "::error::git merge-tree did not return a valid tree object." >&2
+            printf '%s\n' "$merge_output" >&2
+            exit 1
+          fi
+
           git read-tree --reset -u "$merged_tree"
 
-          # Keep the fork's automation instead of importing upstream workflow files.
+          # Restore every fork-owned workflow exactly as it existed before sync.
           git checkout "$before" -- .github/workflows
           printf '%s\n' "$upstream_sha" > .github/upstream-sync-commit
           git add -A
@@ -84,7 +132,7 @@ jobs:
           git reset --hard "$new_commit"
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "Prepared upstream sync commit $new_commit."
-
+          
       - name: Push synchronized source
         if: steps.merge.outputs.changed == 'true'
         run: git push origin HEAD:danmaku-customizations
