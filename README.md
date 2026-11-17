@@ -216,8 +216,8 @@
 
 - **上游同步：** GitHub Actions run [#16](https://github.com/WuLinLee/danmaku-anywhere/actions/runs/44128815751) 成功，已将同步标记推进到上游提交 `6f3bad135023415bc713e1fc0cc3907f0d2ef120`，并成功推送 `danmaku-customizations`。
 - **常规同步检查：** 随后移除一次性迁移逻辑，再次运行的 [#17](https://github.com/WuLinLee/danmaku-anywhere/actions/runs/44129081970) 成功，说明没有新上游提交时的检查路径也正常。
-- **预览构建：** [run #33](https://github.com/WuLinLee/danmaku-anywhere/actions/runs/44129129553) 全部成功，包括 workspace 构建、智能密度测试、扩展类型检查、Chrome 构建、ZIP 校验、上传和 Release 更新。
-- **预览包：** [smart-danmaku-density-preview](https://github.com/WuLinLee/danmaku-anywhere/releases/tag/smart-danmaku-density-preview) 已更新，当前附件为 `smart-danmaku-density-chrome.zip`（27,266,224 bytes）。
+- **预览构建：** [run #34](https://github.com/WuLinLee/danmaku-anywhere/actions/runs/44129159693) 全部成功，包括 workspace 构建、智能密度测试、扩展类型检查、Chrome 构建、ZIP 校验、上传和 Release 更新。
+- **预览包：** [smart-danmaku-density-preview](https://github.com/WuLinLee/danmaku-anywhere/releases/tag/smart-danmaku-density-preview) 已更新，当前附件为 `smart-danmaku-density-chrome.zip`（27,266,232 bytes）。
 
 这修复的是自动同步和预览发布链路，不代表以后上游每次改动都一定能无冲突合并。今后如出现新的源码冲突，工作流会明确失败并输出冲突路径，而不是默默丢弃上游或 fork 的代码。
 
