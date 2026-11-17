@@ -32,6 +32,8 @@ import {
 } from './components/settings/SettingsGroup'
 
 const Footer = () => {
+  const { t } = useTranslation()
+
   return (
     <Box
       sx={{
@@ -46,7 +48,7 @@ const Footer = () => {
       }}
     >
       <Typography variant="caption" sx={{ color: 'text.secondary', flex: 1 }}>
-        Danmaku Anywhere{' '}
+        {t('common.danmakuAnywhere', 'Danmaku Anywhere')}{' '}
         <Box component="b" sx={{ color: 'text.primary' }}>
           v{EXTENSION_VERSION}
         </Box>
@@ -55,6 +57,7 @@ const Footer = () => {
         size="small"
         sx={{ color: 'text.secondary' }}
         onClick={() => window.open(EXTENSION_REPO, '_blank')}
+        aria-label="GitHub"
       >
         <GitHub fontSize="small" />
       </IconButton>
@@ -135,7 +138,7 @@ export const Options = () => {
                 title={t('optionsPage.pages.backup', 'Backup & Restore')}
                 subtitle={
                   session
-                    ? t('optionsPage.menu.cloudReady', 'Cloud sync ready')
+                    ? t('optionsPage.menu.cloudReady', 'Cloud backup available')
                     : t('optionsPage.menu.localOnly', 'Local backup')
                 }
                 onClick={() => navigate('backup')}
@@ -175,7 +178,7 @@ export const Options = () => {
               <SettingsRow
                 icon={<BugReport fontSize="small" />}
                 iconTone="error"
-                title={t('optionsPage.help.reportBug', 'Report a Bug')}
+                title={t('optionsPage.help.reportBug', 'Report a bug')}
                 external
                 href={`${BUG_FORM}?ID=${data.id}&Version=${EXTENSION_VERSION}`}
                 target="_blank"

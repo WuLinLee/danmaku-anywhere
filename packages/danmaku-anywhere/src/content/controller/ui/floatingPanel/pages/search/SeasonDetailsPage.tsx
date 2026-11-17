@@ -3,7 +3,7 @@ import type {
   EpisodeMeta,
   Season,
   WithSeason,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import { Search } from '@mui/icons-material'
 import {
   Chip,
@@ -19,13 +19,66 @@ import { BookmarkToggleButton } from '@/common/bookmark/components/BookmarkToggl
 import { BaseEpisodeListItem } from '@/common/components/EpisodeList/BaseEpisodeListItem'
 import { EpisodeSearchList } from '@/common/components/EpisodeList/EpisodeSearchList'
 import { MacCmsEpisodeListItem } from '@/common/components/EpisodeList/MacCmsEpisodeListItem'
+import type {
+  RenderCustomEpisodeData,
+  RenderEpisodeData,
+} from '@/common/components/EpisodeList/types'
 import { ErrorMessage } from '@/common/components/ErrorMessage'
 import { ScrollBox } from '@/common/components/layout/ScrollBox'
 import { TabLayout } from '@/common/components/layout/TabLayout'
 import { TabToolbar } from '@/common/components/layout/TabToolbar'
 import type { ProviderConfig } from '@/common/options/providerConfig/schema'
 import { assertMacCmsConfig } from '@/common/options/providerConfig/utils'
+import { describeSourceError } from '@/common/providers/describeSourceError'
 import { useLoadDanmaku } from '@/content/controller/common/hooks/useLoadDanmaku'
+
+function SourceEpisodeItem({ data }: { data: RenderEpisodeData }) {
+  const { loadMutation, load } = useLoadDanmaku()
+
+  const handleFetchDanmaku = async (meta: WithSeason<EpisodeMeta>) => {
+    await load({
+      type: 'by-meta',
+      meta,
+      options: { forceUpdate: true },
+    })
+  }
+
+  return (
+    <BaseEpisodeListItem
+      episode={data.danmaku ?? data.episode}
+      index={data.index}
+      isLoading={loadMutation.isPending || data.isLoading}
+      onClick={handleFetchDanmaku}
+    />
+  )
+}
+
+function MacCmsEpisodeItem({
+  data,
+  provider,
+}: {
+  data: RenderCustomEpisodeData
+  provider: ProviderConfig
+}) {
+  const { loadGenericMutation } = useLoadDanmaku()
+
+  assertMacCmsConfig(provider)
+
+  return (
+    <MacCmsEpisodeListItem
+      episode={data.episode}
+      index={data.index}
+      onClick={() =>
+        loadGenericMutation.mutate({
+          ...data.episode,
+          providerConfigId: provider.id,
+        })
+      }
+      isLoading={loadGenericMutation.isPending}
+      danmaku={loadGenericMutation.data}
+    />
+  )
+}
 
 type SeasonDetailsPageProps = {
   season: Season | CustomSeason
@@ -91,55 +144,17 @@ export const SeasonDetailsPage = ({
       >
         <ErrorBoundary
           fallbackRender={({ error }) => (
-            <ErrorMessage message={(error as Error).message} />
+            <ErrorMessage message={describeSourceError(error)} />
           )}
         >
           <Suspense fallback={null}>
             <EpisodeSearchList
               season={season}
               filter={filter}
-              renderEpisode={(data) => {
-                const { loadMutation } = useLoadDanmaku()
-
-                const handleFetchDanmaku = async (
-                  meta: WithSeason<EpisodeMeta>
-                ) => {
-                  await loadMutation.mutateAsync({
-                    type: 'by-meta',
-                    meta,
-                    options: { forceUpdate: true },
-                  })
-                }
-
-                return (
-                  <BaseEpisodeListItem
-                    episode={data.danmaku ?? data.episode}
-                    index={data.index}
-                    isLoading={loadMutation.isPending || data.isLoading}
-                    onClick={handleFetchDanmaku}
-                  />
-                )
-              }}
-              renderCustomEpisode={(data) => {
-                const { loadGenericMutation } = useLoadDanmaku()
-
-                assertMacCmsConfig(provider)
-
-                return (
-                  <MacCmsEpisodeListItem
-                    episode={data.episode}
-                    index={data.index}
-                    onClick={() =>
-                      loadGenericMutation.mutate({
-                        ...data.episode,
-                        providerConfigId: provider.id,
-                      })
-                    }
-                    isLoading={loadGenericMutation.isPending}
-                    danmaku={loadGenericMutation.data}
-                  />
-                )
-              }}
+              renderEpisode={(data) => <SourceEpisodeItem data={data} />}
+              renderCustomEpisode={(data) => (
+                <MacCmsEpisodeItem data={data} provider={provider} />
+              )}
             />
           </Suspense>
         </ErrorBoundary>

@@ -2,7 +2,7 @@
 
 Angular web application for Danmaku Anywhere. Provides a Kazumi-style video aggregation experience in the browser.
 
-**Requires the [Danmaku Anywhere](https://github.com/Mr-Quin/danmaku-anywhere) browser extension to function.**
+**Requires the [Danmaku Anywhere](https://github.com/Danmaku-Anywhere/danmaku-anywhere) browser extension to function.**
 
 ## Tech Stack
 
@@ -23,8 +23,7 @@ Angular web application for Danmaku Anywhere. Provides a Kazumi-style video aggr
 ## Workspace Dependencies
 
 - `@danmaku-anywhere/bangumi-api` — Bangumi API types
-- `@danmaku-anywhere/danmaku-converter` — Danmaku format conversion
-- `@danmaku-anywhere/danmaku-provider` — Danmaku data providers & API store
-- `@danmaku-anywhere/web-scraper` — Scraping from extension context
+- `@danmaku-anywhere/danmaku-model`: shared episode and comment types
+- `@danmaku-anywhere/extension-protocol`: messages exchanged with the extension
 
-API base URL is configured via `configureApiStore({ baseUrl })` in `main.ts` and `environment.apiRoot`.
+The backend base URL is `environment.apiRoot`. The Kazumi rule list and rule files are fetched from it by `features/kazumi/services/kazumi-api.ts`.

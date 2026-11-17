@@ -6,7 +6,7 @@ import {
   type EpisodeStub,
   type GenericEpisodeLite,
   providerTypeFromManifestId,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useGetAllSeasonsSuspense } from '@/common/anime/queries/useGetAllSeasonsSuspense'
@@ -268,7 +268,6 @@ export const useDanmakuTree = (
           label: ep.title,
           kind: 'episode',
           data: ep,
-          orphaned,
         })
       )
 

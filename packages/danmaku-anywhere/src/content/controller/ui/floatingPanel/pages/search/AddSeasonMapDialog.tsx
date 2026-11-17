@@ -1,4 +1,4 @@
-import type { Season } from '@danmaku-anywhere/danmaku-converter'
+import type { Season } from '@danmaku-anywhere/danmaku-model'
 import { useTranslation } from 'react-i18next'
 import { useDialog } from '@/common/components/Dialog/dialogStore'
 import { SeasonMap } from '@/common/seasonMap/SeasonMap'
@@ -20,7 +20,7 @@ export const useShowAddSeasonMapDialog = () => {
       title: t('searchPage.titleMapping', 'Map Title'),
       content: t(
         'searchPage.titleMappingDialog.confirmation',
-        'Map `{{original}}` to `{{mapped}}` ?',
+        'Map "{{original}}" to "{{mapped}}"?',
         {
           original: mapKey,
           mapped: season.title,

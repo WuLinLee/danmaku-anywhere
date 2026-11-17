@@ -1,5 +1,6 @@
 import { i18n } from '@/common/localization/i18n'
 import { useToast } from '../components/Toast/toastStore'
+import { isInfoPanelEnabled } from '../options/extensionOptions/infoPanel'
 import type { ExtensionOptions } from '../options/extensionOptions/schema'
 import { chromeRpcClient } from '../rpcClient/background/client'
 import { copyToClipboard } from '../utils/copyToClipboard'
@@ -151,11 +152,14 @@ const advancedSettings: AdvancedSettingConfig[] = [
   {
     id: 'toggle.analytics',
     label: () =>
-      i18n.t('optionsPage.enableAnalytics', 'Enable anonymous analytics'),
+      i18n.t(
+        'optionsPage.enableAnalytics',
+        'Share usage data with Microsoft Clarity'
+      ),
     description: () =>
       i18n.t(
         'optionsPage.enableAnalyticsDesc',
-        'Share opt-in usage stats to guide development.'
+        'Records how you use the extension, including on pages where its in-page controls run, and sends it to Microsoft Clarity. Turn this off to stop sending it.'
       ),
     category: 'advanced',
     group: 'privacy',
@@ -168,7 +172,7 @@ const advancedSettings: AdvancedSettingConfig[] = [
     label: () =>
       i18n.t(
         'optionsPage.restrictInitiatorDomain',
-        'Limit DNR initiator domains to this extension'
+        'Only modify requests made by this extension'
       ),
     description: () =>
       i18n.t(
@@ -198,7 +202,15 @@ const advancedSettings: AdvancedSettingConfig[] = [
   {
     id: 'toggle.autoBookmark',
     label: () =>
-      i18n.t('optionsPage.autoBookmark', 'Auto bookmark shows when preloading'),
+      i18n.t(
+        'optionsPage.autoBookmark',
+        'Follow automatically when preloading the next episode'
+      ),
+    description: () =>
+      i18n.t(
+        'optionsPage.autoBookmarkDesc',
+        "Follow a show once you are halfway through an episode, so the next episode's danmaku is preloaded."
+      ),
     category: 'advanced',
     group: 'behavior',
     type: 'toggle',
@@ -235,7 +247,7 @@ const playerSettings: ToggleSettingConfig<ExtensionOptions>[] = [
     description: () =>
       i18n.t(
         'optionsPage.player.showDanmakuTimelineDesc',
-        'Overlay a comment-density timeline above the scrubber.'
+        'Draw a comment-density graph along the bottom edge of the video.'
       ),
     category: 'player',
     type: 'toggle',
@@ -250,9 +262,14 @@ const playerSettings: ToggleSettingConfig<ExtensionOptions>[] = [
   {
     id: 'toggle.infoPanel.enabled',
     label: () => i18n.t('optionsPage.infoPanel.enabled', 'Show info panel'),
+    description: () =>
+      i18n.t(
+        'optionsPage.infoPanel.enabledDesc',
+        'Overlay a card on the video with the mounted episode and comment count.'
+      ),
     category: 'player',
     type: 'toggle',
-    getValue: (options) => options.infoPanel.enabled,
+    getValue: (options) => isInfoPanelEnabled(options.infoPanel),
     createUpdate: (options, newValue) => ({
       infoPanel: { ...options.infoPanel, enabled: newValue },
     }),

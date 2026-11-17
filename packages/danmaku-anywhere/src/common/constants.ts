@@ -15,6 +15,8 @@ export const IS_EXTERNALLY_CONNECTABLE = EXTERNALLY_CONNECTABLE_PATTERNS.some(
 export const IS_FIREFOX = import.meta.env.VITE_TARGET_BROWSER === 'firefox'
 export const IS_CHROME = import.meta.env.VITE_TARGET_BROWSER === 'chrome'
 
+export const IS_OCCLUSION_SUPPORTED = IS_CHROME
+
 export type DaEnv = 'dev' | 'preview' | 'prod' | 'e2e'
 
 export const DA_ENV: DaEnv = import.meta.env.VITE_DA_ENV
@@ -31,7 +33,8 @@ export const EXTENSION_VERSION = import.meta.env.VERSION
 
 export const DEV_BRANCH = import.meta.env.VITE_DA_BRANCH
 
-export const EXTENSION_REPO = 'https://github.com/Mr-Quin/danmaku-anywhere'
+export const EXTENSION_REPO =
+  'https://github.com/Danmaku-Anywhere/danmaku-anywhere'
 
 export const BUG_FORM =
   'https://forms.clickup.com/90131020449/f/2ky3men1-933/ULQ3OZ8QYRXIJ5HACI'

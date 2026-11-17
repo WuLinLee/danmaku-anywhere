@@ -4,7 +4,7 @@
   "private": true,
   "description": "",
   "author": "Mr-Quin",
-  "repository": "https://github.com/Mr-Quin/danmaku-anywhere",
+  "repository": "https://github.com/Danmaku-Anywhere/danmaku-anywhere",
   "license": "MIT",
   "type": "module",
   "main": "src/index.js",
@@ -18,7 +18,7 @@
     "dev": "tsgo -w"
   },
   "dependencies": {
-    "@danmaku-anywhere/danmaku-converter": "workspace:*",
+    "@danmaku-anywhere/danmaku-model": "workspace:*",
     "@mr-quin/danmu": "0.20.0-rc.4"
   },
   "devDependencies": {

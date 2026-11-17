@@ -1,7 +1,7 @@
 import type {
   GenericEpisode,
   GenericEpisodeLite,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import { ArrowBack } from '@mui/icons-material'
 import { Box, IconButton, Stack, Typography } from '@mui/material'
 import type { ReactElement } from 'react'
@@ -11,6 +11,7 @@ import { NothingHere } from '@/common/components/NothingHere'
 import { useCustomEpisodeSuspense } from '@/common/danmaku/queries/useCustomEpisodes'
 import { useEpisodesSuspense } from '@/common/danmaku/queries/useEpisodes'
 import { isSourceEpisode } from '@/common/danmaku/utils'
+import { useCanRefetchDanmaku } from '@/common/providers/useSourceCapabilities'
 import { useRefreshDanmaku } from '@/popup/hooks/useRefreshDanmaku'
 import { FullPageSpinner } from '../../FullPageSpinner'
 
@@ -19,32 +20,24 @@ interface DanmakuViewerProps {
   episode: GenericEpisodeLite
 }
 
-const CommentsLoader = ({
+function EpisodeComments({
   episodeLite,
+  episode,
 }: {
   episodeLite: GenericEpisodeLite
-}) => {
+  episode: GenericEpisode | undefined
+}) {
   const { refreshDanmaku, ...mutation } = useRefreshDanmaku()
+  const refetchable = useCanRefetchDanmaku(episodeLite)
 
-  let episode: GenericEpisode | undefined
-
-  const isCustom = !isSourceEpisode(episodeLite)
-
-  if (isCustom) {
-    const { data } = useCustomEpisodeSuspense({ id: episodeLite.id })
-    episode = data[0]
-  } else {
-    const { data } = useEpisodesSuspense({ id: episodeLite.id })
-    episode = data[0]
-  }
-
-  const canRefresh = episode !== undefined && !isCustom
+  const canRefresh =
+    episode !== undefined && isSourceEpisode(episodeLite) && refetchable
 
   const handleRefresh = () => {
     if (!canRefresh) {
       return
     }
-    void refreshDanmaku(episodeLite)
+    refreshDanmaku(episodeLite)
   }
 
   if (!episode) {
@@ -68,6 +61,31 @@ const CommentsLoader = ({
       isRefreshing={mutation.isPending}
     />
   )
+}
+
+function SourceCommentsLoader({
+  episodeLite,
+}: {
+  episodeLite: GenericEpisodeLite
+}) {
+  const { data } = useEpisodesSuspense({ id: episodeLite.id })
+  return <EpisodeComments episodeLite={episodeLite} episode={data[0]} />
+}
+
+function CustomCommentsLoader({
+  episodeLite,
+}: {
+  episodeLite: GenericEpisodeLite
+}) {
+  const { data } = useCustomEpisodeSuspense({ id: episodeLite.id })
+  return <EpisodeComments episodeLite={episodeLite} episode={data[0]} />
+}
+
+function CommentsLoader({ episodeLite }: { episodeLite: GenericEpisodeLite }) {
+  if (isSourceEpisode(episodeLite)) {
+    return <SourceCommentsLoader episodeLite={episodeLite} />
+  }
+  return <CustomCommentsLoader episodeLite={episodeLite} />
 }
 
 export const DanmakuViewer = ({

@@ -2,22 +2,19 @@ import type {
   EpisodeMeta,
   Season,
   WithSeason,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import { inject, injectable } from 'inversify'
 import { ProviderConfigService } from '@/common/options/providerConfig/service'
 import { resolveSeasonConfig } from '@/common/providers/resolveSeasonConfig'
-import {
-  DanmakuProviderFactory,
-  type IDanmakuProviderFactory,
-} from '../providers/ProviderFactory'
+import { SourceCapabilityService } from '../providers/SourceCapabilityService'
 
 @injectable('Singleton')
 export class EpisodeResolutionService {
   constructor(
     @inject(ProviderConfigService)
     private providerConfigService: ProviderConfigService,
-    @inject(DanmakuProviderFactory)
-    private danmakuProviderFactory: IDanmakuProviderFactory
+    @inject(SourceCapabilityService)
+    private sourceCapabilities: SourceCapabilityService
   ) {}
 
   async resolveEpisode(
@@ -31,13 +28,10 @@ export class EpisodeResolutionService {
     if (!providerConfig) {
       throw new Error(`Provider config not found for season: ${season.title}`)
     }
-    const service = this.danmakuProviderFactory(providerConfig)
-
-    if (!service.findEpisode) {
-      throw new Error(
-        `Provider ${season.manifestId} does not support episode matching.`
-      )
-    }
+    const service = await this.sourceCapabilities.sourceProvider(
+      providerConfig,
+      'episodes'
+    )
 
     const match = await service.findEpisode(season, episodeNumber)
     if (match) return match

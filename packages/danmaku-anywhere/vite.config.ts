@@ -6,7 +6,10 @@ import { defaultClientConditions, type Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
 import { manifest } from './manifest'
 import { getBuildContext } from './scripts/getBuildContext'
-import { vendorRuntimeAssets } from './scripts/vendorRuntimeAssets'
+import {
+  dropOcclusionRuntimes,
+  vendorRuntimeAssets,
+} from './scripts/vendorRuntimeAssets'
 
 const { browser, appVersion, isDev, daEnv, gitBranch } = getBuildContext()
 
@@ -79,6 +82,8 @@ export default defineConfig({
     react({}),
     crx({ manifest, browser: browser.name }),
     buildInfo(),
+    // Occlusion only runs in Chrome.
+    ...(isFirefox ? [dropOcclusionRuntimes()] : []),
   ],
   // Don't pre-bundle the variable font packages: when crxjs serves dev assets,
   // `?url` for pre-bundled CSS resolves to a `/vendor/...__url.js` shim instead

@@ -1,11 +1,11 @@
 import {
   commentOptionsToString,
   parseCommentEntityP,
-} from '@danmaku-anywhere/danmaku-converter'
-import { err, ok, type Result } from '@danmaku-anywhere/result'
+} from '@danmaku-anywhere/danmaku-model'
 import type { output, ZodType } from 'zod'
 import type { DanmakuProviderError } from '../../exceptions/BaseError.js'
 import { InputError } from '../../exceptions/InputError.js'
+import { err, ok, type Result } from '../../result.js'
 import { getApiStore } from '../../shared/store.js'
 import type { FetchOptions } from '../utils/fetchData.js'
 import { fetchData } from '../utils/fetchData.js'

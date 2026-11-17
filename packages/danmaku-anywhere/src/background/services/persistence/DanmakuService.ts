@@ -13,7 +13,7 @@ import {
   type Season,
   type WithSeason,
   zCombinedDanmaku,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import { inject, injectable } from 'inversify'
 import { SeasonService } from '@/background/services/persistence/SeasonService'
 import type {
@@ -33,6 +33,21 @@ import { matchPathByName } from './utils/matchPathByName'
 function countRenderable(comments: CommentEntity[]): number {
   return comments.filter((comment) => parseCommentEntityP(comment.p) !== null)
     .length
+}
+
+function hasSameComments(a: CommentEntity[], b: CommentEntity[]): boolean {
+  if (a.length !== b.length) {
+    return false
+  }
+  return a.every((comment, i) => {
+    const other = b[i]
+    return (
+      comment.p === other.p &&
+      comment.m === other.m &&
+      comment.s === other.s &&
+      comment.cid === other.cid
+    )
+  })
 }
 
 @injectable('Singleton')
@@ -74,6 +89,23 @@ export class DanmakuService {
       commentCount: importData.comments.length,
       title: importData.title,
       schemaVersion: EPISODE_SCHEMA_VERSION,
+    })
+  }
+
+  // A custom episode has no upstream id, so a file counts as already imported
+  // when an episode with the same title (the file's path within the import)
+  // holds the same comments. Files that only share a name, like two shows'
+  // 01.xml, still import.
+  private async hasCustomCopy(
+    title: string,
+    comments: CommentEntity[]
+  ): Promise<boolean> {
+    const sameTitle = await this.db.customEpisode
+      .where('title')
+      .equals(title)
+      .toArray()
+    return sameTitle.some((episode) => {
+      return hasSameComments(episode.comments, comments)
     })
   }
 
@@ -319,6 +351,7 @@ export class DanmakuService {
   async import(importData: DanmakuImportData[]): Promise<DanmakuImportResult> {
     const results: DanmakuImportResult = {
       success: [],
+      alreadyImported: [],
       error: [],
     }
 
@@ -329,6 +362,11 @@ export class DanmakuService {
       for (const [i, item] of data.parsed) {
         try {
           if (item.type === 'Custom') {
+            const { title, comments } = item.episode
+            if (await this.hasCustomCopy(title, comments)) {
+              results.alreadyImported.push({ title })
+              continue
+            }
             await this.addCustom(item.episode)
             results.success.push({
               title: item.episode.title,
@@ -398,6 +436,10 @@ export class DanmakuService {
         const customParse = zCombinedDanmaku.safeParse(data)
 
         if (customParse.success) {
+          if (await this.hasCustomCopy(title, customParse.data)) {
+            results.alreadyImported.push({ title })
+            return
+          }
           await this.importCustom({
             comments: customParse.data,
             title,
@@ -451,20 +493,28 @@ export class DanmakuService {
     return results
   }
 
+  private purgeableOlderThan(days: number) {
+    const threshold = Date.now() - days * 24 * 60 * 60 * 1000
+    // custom episodes live in their own table and are never purged
+    return {
+      threshold,
+      collection: this.db.episode.where('timeUpdated').below(threshold),
+    }
+  }
+
+  async countOlderThan(days: number) {
+    if (days <= 0) return 0
+    return this.purgeableOlderThan(days).collection.count()
+  }
+
   async purgeOlderThan(days: number) {
     if (days <= 0) return 0
 
-    const now = Date.now()
-    const threshold = now - days * 24 * 60 * 60 * 1000
-
-    // delete danmaku older than threshold, ignoring custom danmaku
-    const deleteCount = await this.db.episode
-      .where('timeUpdated')
-      .below(threshold)
-      .delete()
+    const { threshold, collection } = this.purgeableOlderThan(days)
+    const deleteCount = await collection.delete()
 
     this.logger.log(
-      `Purged ${deleteCount} danmaku older than ${new Date(threshold).toLocaleString()}`
+      `Purged ${deleteCount} episodes not updated since ${new Date(threshold).toLocaleString()}`
     )
 
     return deleteCount

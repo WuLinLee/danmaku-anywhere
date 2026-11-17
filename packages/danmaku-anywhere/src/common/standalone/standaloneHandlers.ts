@@ -96,12 +96,19 @@ export const standaloneBackgroundHandlers: StandaloneRpcHandlers<BackgroundMetho
     }),
     episodeImport: () => ({
       success: [],
+      alreadyImported: [],
       error: [],
     }),
     mediaParseUrl: () =>
       null as unknown as BackgroundMethods['mediaParseUrl']['output'],
+    mediaFindUrlSource: () => ({ kind: 'unclaimed' }),
+    danmakuCountPurgeable: () => 0,
     danmakuPurgeCache: () => 0,
     providerProbeLogin: () => ({ hasLoginProbe: false, ok: true }),
+    providerGetCapabilities: () => ({
+      status: 'unavailable',
+      reason: 'standalone',
+    }),
     providerGetManifestSpec: () => ({ name: '', hasLoginProbe: false }),
     providerGetPendingUpdates: () => [],
     providerApplyUpdates: () => undefined,
@@ -164,12 +171,10 @@ export const standaloneControllerHandlers: StandaloneRpcHandlers<ControllerMetho
 
 export const standalonePlayerCommandHandlers: StandaloneRpcHandlers<PlayerRelayCommands> =
   {
-    'relay:command:mount': () => true,
-    'relay:command:unmount': () => true,
+    'relay:command:apply': () => undefined,
     'relay:command:start': () => undefined,
     'relay:command:seek': () => undefined,
     'relay:command:enterPip': () => undefined,
-    'relay:command:show': () => undefined,
     'relay:command:controllerReady': () => undefined,
     'relay:command:debugSkipButton': () => undefined,
     'relay:command:getSegmentationStats': () => ({

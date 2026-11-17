@@ -7,6 +7,7 @@ import {
   OptionsServiceFactory,
 } from '@/common/options/OptionsService/OptionServiceFactory'
 import type { OptionsService } from '@/common/options/OptionsService/OptionsService'
+import { providerConfigDescriptor } from '@/common/options/optionStores'
 import { chromeRpcClient } from '@/common/rpcClient/background/client'
 import { ExtStorageService } from '@/common/storage/ExtStorageService'
 import { isServiceWorker } from '@/common/utils/utils'
@@ -20,11 +21,12 @@ import {
 } from './migration'
 import type { ProviderConfig } from './schema'
 import { providerConfigSchema } from './schema'
-import { isLegacyMacCms } from './utils'
+import { LATEST_PROVIDER_CONFIG_VERSION } from './version'
 
 @injectable('Singleton')
 export class ProviderConfigService implements IStoreService {
   public readonly name = 'providerConfig'
+  public readonly descriptor = providerConfigDescriptor
   public readonly options: OptionsService<ProviderConfig[]>
   public readonly backupItemSchema = providerConfigSchema
 
@@ -42,10 +44,11 @@ export class ProviderConfigService implements IStoreService {
     private readonly optionServiceFactory: IOptionsServiceFactory
   ) {
     this.options = this.optionServiceFactory<ProviderConfig[]>(
-      'providerConfig',
+      providerConfigDescriptor.key,
       // Fresh installs start empty and are seeded after the catalog loads.
       [],
-      this.logger
+      this.logger,
+      providerConfigDescriptor.area
     )
       .version(2, {
         upgrade: (data) => {
@@ -88,7 +91,7 @@ export class ProviderConfigService implements IStoreService {
           }
         },
       })
-      .version(5, {
+      .version(LATEST_PROVIDER_CONFIG_VERSION, {
         upgrade: (data) => {
           try {
             return migrateDropDeadProviderFields(data)
@@ -145,28 +148,6 @@ export class ProviderConfigService implements IStoreService {
 
   async getAll() {
     return this.options.get()
-  }
-
-  /**
-   * Returns the first automatic provider that is enabled
-   */
-  async getFirstAutomaticProvider(): Promise<ProviderConfig | undefined> {
-    const automaticProviders = await this.getAutomaticProviders()
-    return automaticProviders.find((item) => item.enabled)
-  }
-
-  async getAutomaticProviders(): Promise<ProviderConfig[]> {
-    const configs = await this.options.get()
-
-    return configs.filter(
-      (item) => item.enabled && this.supportsAutomaticMode(item)
-    )
-  }
-
-  supportsAutomaticMode(config: ProviderConfig): boolean {
-    // Manifest-driven sources support automatic mode implicitly. Legacy MacCMS
-    // has no manifest and is search-only, so it stays opt-out.
-    return !isLegacyMacCms(config)
   }
 
   async update<T extends ProviderConfig>(

@@ -26,6 +26,7 @@ import { TitleMappingService } from '@/background/services/persistence/TitleMapp
 import { MacCmsProviderService } from '@/background/services/providers/MacCmsProviderService'
 import { ManifestRegistry } from '@/background/services/providers/ManifestRegistry'
 import { ManifestSandbox } from '@/background/services/providers/ManifestSandbox'
+import { SourceCapabilityService } from '@/background/services/providers/SourceCapabilityService'
 import { invalidateContentScriptData } from '@/background/utils/invalidateContentScriptData'
 import { AuthClientService } from '@/common/auth/AuthClientService'
 import type { EpisodeFetchBySeasonParams } from '@/common/danmaku/dto'
@@ -33,9 +34,11 @@ import { type ILogger, LoggerSymbol } from '@/common/Logger'
 import { ExtensionOptionsService } from '@/common/options/extensionOptions/service'
 import { MountConfigService } from '@/common/options/mountConfig/service'
 import { ProviderConfigService } from '@/common/options/providerConfig/service'
+import { OptionsUpgradeService } from '@/common/options/upgrade/OptionsUpgradeService'
 import type { TabRPCClientMethod } from '@/common/rpc/client'
 import type { RPCServerHandlers, RRPServerHandler } from '@/common/rpc/server'
 import { createRpcServer } from '@/common/rpc/server'
+import { buildDetachedPopupUrl, findTargetTab } from '@/common/rpc/targetTab'
 import type { AnyRPCDef } from '@/common/rpc/types'
 import { RpcException } from '@/common/rpc/types'
 import type {
@@ -88,7 +91,11 @@ export class RpcManager {
     @inject(ManifestRegistry)
     private manifestRegistry: ManifestRegistry,
     @inject(ManifestSandbox)
-    private manifestSandbox: ManifestSandbox
+    private manifestSandbox: ManifestSandbox,
+    @inject(OptionsUpgradeService)
+    private optionsUpgradeService: OptionsUpgradeService,
+    @inject(SourceCapabilityService)
+    private sourceCapabilities: SourceCapabilityService
   ) {
     this.logger = logger.sub('[RpcManager]')
   }
@@ -119,6 +126,9 @@ export class RpcManager {
       mediaParseUrl: async (input) => {
         return this.providerService.parseUrl(input.url)
       },
+      mediaFindUrlSource: async (input) => {
+        return this.sourceCapabilities.findUrlSource(input.url)
+      },
       episodeFetchBySeason: async (input: EpisodeFetchBySeasonParams) => {
         return this.providerService.fetchEpisodesBySeason(input.seasonId)
       },
@@ -127,6 +137,9 @@ export class RpcManager {
       },
       providerProbeLogin: async ({ manifestId }) => {
         return this.providerService.getLoginStatus(manifestId)
+      },
+      providerGetCapabilities: async ({ providerConfigId }) => {
+        return this.sourceCapabilities.forProviderConfig(providerConfigId)
       },
       providerGetManifestSpec: async ({ manifestId, locale }) => {
         return this.providerService.getManifestSpec(manifestId, locale)
@@ -273,6 +286,9 @@ export class RpcManager {
         void invalidateContentScriptData(sender.tab?.id)
         return result
       },
+      danmakuCountPurgeable: async (days) => {
+        return this.danmakuService.countOlderThan(days)
+      },
       danmakuPurgeCache: async (days, sender) => {
         const result = await this.danmakuService.purgeOlderThan(days)
         void invalidateContentScriptData(sender.tab?.id)
@@ -301,15 +317,9 @@ export class RpcManager {
       exportDebugData: async () => {
         return this.debugFileService.upload()
       },
-      getActiveTabUrl: async () => {
-        const tabs = await chrome.tabs.query({
-          active: true,
-          currentWindow: true,
-        })
-
-        const activeTab = tabs[0]
-
-        return activeTab?.url ?? null
+      getActiveTabUrl: async (input) => {
+        const tab = await findTargetTab(input?.tabId)
+        return tab?.url ?? null
       },
       mountConfigGetAll: async () => {
         return this.mountConfigService.getAll()
@@ -356,17 +366,17 @@ export class RpcManager {
         }
         await setRequestHeaderRule(rule, sender.tab.id)
       },
-      openPopupInNewWindow: async ({ path, width, height }) => {
+      openPopupInNewWindow: async ({ path, tabId, width, height }) => {
         void chrome.windows.create({
-          url: chrome.runtime.getURL(`pages/popup.html?detached=1#/${path}`),
+          url: buildDetachedPopupUrl(path, tabId),
           type: 'popup',
           width: width ?? 550,
           height: height ?? 650,
         })
       },
-      openPopupInNewTab: async ({ path }) => {
+      openPopupInNewTab: async ({ path, tabId }) => {
         void chrome.tabs.create({
-          url: chrome.runtime.getURL(`pages/popup.html?detached=1#/${path}`),
+          url: buildDetachedPopupUrl(path, tabId),
         })
       },
       getConfigMacCms: async (input) => {
@@ -413,6 +423,12 @@ export class RpcManager {
       dataWipeDanmaku: async (data, sender) => {
         await this.dataManagementService.wipeAllData(data)
         void invalidateContentScriptData(sender.tab?.id)
+      },
+      optionsEnsureUpgraded: async () => {
+        return this.optionsUpgradeService.ensureUpgraded()
+      },
+      optionsUpgrade: async () => {
+        return this.optionsUpgradeService.upgrade()
       },
       bookmarkGetAll: async () => {
         return this.bookmarkService.getAll()
@@ -487,20 +503,14 @@ export class RpcManager {
 
     const rpcRelay = createRpcServer<PlayerRelayCommands & PlayerRelayEvents>(
       {
-        'relay:command:mount': passThrough(
-          relayFrameClient['relay:command:mount']
-        ),
-        'relay:command:unmount': passThrough(
-          relayFrameClient['relay:command:unmount']
+        'relay:command:apply': passThrough(
+          relayFrameClient['relay:command:apply']
         ),
         'relay:command:start': passThrough(
           relayFrameClient['relay:command:start']
         ),
         'relay:command:seek': passThrough(
           relayFrameClient['relay:command:seek']
-        ),
-        'relay:command:show': passThrough(
-          relayFrameClient['relay:command:show']
         ),
         'relay:command:enterPip': passThrough(
           relayFrameClient['relay:command:enterPip']

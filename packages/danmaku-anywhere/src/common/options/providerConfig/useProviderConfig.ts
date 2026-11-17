@@ -1,9 +1,12 @@
 import { arrayMove } from '@dnd-kit/sortable'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useInjectService } from '@/common/hooks/useInjectService'
+import { providerConfigDescriptor } from '@/common/options/optionStores'
+import { useOptionStoreQuery } from '@/common/options/useOptionStoreQuery'
 import { bookmarkQueryKeys, storageQueryKeys } from '@/common/queries/queryKeys'
-import { useSuspenseExtStorageQuery } from '@/common/storage/hooks/useSuspenseExtStorageQuery'
+import { withLocalizedBuiltinNames } from './builtinNames'
 import type { ProviderConfig, ProviderConfigOptions } from './schema'
 import { ProviderConfigService } from './service'
 
@@ -12,12 +15,13 @@ export const useProviderConfig = () => {
     data: options,
     update,
     ...rest
-  } = useSuspenseExtStorageQuery<ProviderConfigOptions>('providerConfig', {
-    storageType: 'sync',
-    isOptionStore: true,
-  })
+  } = useOptionStoreQuery<ProviderConfigOptions>(providerConfigDescriptor)
 
-  const configs: ProviderConfig[] = options.data
+  const { i18n } = useTranslation()
+  const configs: ProviderConfig[] = useMemo(
+    () => withLocalizedBuiltinNames(options.data, i18n.language),
+    [options.data, i18n.language]
+  )
 
   const methods = useMemo(() => {
     const enabledProviders = configs.filter((config) => config.enabled)

@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "outDir": "./dist/",
+    "declarationMap": false,
+    "composite": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "resolveJsonModule": true,
+    "allowJs": false
+  },
+  "include": ["./src", "./src/**/*.json"],
+  "exclude": ["**/*.test.ts"],
+  "references": []
+}

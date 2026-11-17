@@ -3,15 +3,16 @@ import {
   effect,
   Injectable,
   inject,
+  linkedSignal,
   signal,
   untracked,
 } from '@angular/core'
 import {
-  getManifest,
-  getPolicy,
+  isXPathPolicy,
   type KazumiPolicy,
-} from '@danmaku-anywhere/danmaku-provider/kazumi'
-import type { MediaInfo, SetHeaderRule } from '@danmaku-anywhere/web-scraper'
+  type MediaInfo,
+  type SetHeaderRule,
+} from '@danmaku-anywhere/extension-protocol'
 import {
   injectMutation,
   injectQuery,
@@ -28,10 +29,15 @@ import {
   startWith,
   tap,
 } from 'rxjs'
+import { environment } from '../../../../environments/environment'
 import { ExtensionMessagingService } from '../../../core/extension/extension-messaging.service'
 import { queryKeys } from '../../../shared/query/queryKeys'
+import { createLimiter } from '../../../shared/utils/createLimiter'
 import { sortArrayByOrder } from '../../../shared/utils/utils'
 import { withTimeout } from '../../../shared/utils/withTimeout'
+import { normalizeStoredPolicy } from '../utils/normalize-stored-policy'
+import { getManifest, getPolicy } from './kazumi-api'
+import { KazumiSearchPreferences } from './kazumi-search-preferences'
 
 interface Setting<T> {
   key: string
@@ -40,6 +46,11 @@ interface Setting<T> {
 
 type PolicyOrder = string[]
 const POLICY_ORDER_KEY = 'policyOrder'
+
+// Each rule search opens its own browser window in the extension, so searches
+// share one slot pool no matter who starts them or which keyword they belong
+// to.
+const SEARCH_CONCURRENCY = 3
 
 class KazumiDb extends Dexie {
   policies!: Table<KazumiPolicy, string>
@@ -82,6 +93,8 @@ export class KazumiService {
   private readonly db = new KazumiDb()
   private readonly extensionMessagingService = inject(ExtensionMessagingService)
   private readonly queryClient = inject(QueryClient)
+  private readonly searchPreferences = inject(KazumiSearchPreferences)
+  private readonly searchSlots = createLimiter(SEARCH_CONCURRENCY)
 
   // active policy for tab
   private readonly $_activePolicy = signal<KazumiPolicy | null>(null)
@@ -95,9 +108,16 @@ export class KazumiService {
   private readonly $_inProgressImports = signal(new Set<string>())
   readonly $inProgressImports = this.$_inProgressImports.asReadonly()
 
-  // determine if a tab should load its query
-  private readonly $_visitedTabs = signal(new Map<string, boolean>())
-  readonly $visitedTabs = this.$_visitedTabs.asReadonly()
+  // why the last import of each policy failed, keyed by policy name
+  private readonly $_importErrors = signal(new Map<string, string>())
+  readonly $importErrors = this.$_importErrors.asReadonly()
+
+  // Rule tabs the user opened for the current keyword, searched even when the
+  // search-all switch is off. A new keyword starts over with the active tab.
+  private readonly $_visitedTabs = linkedSignal<string, Set<string>>({
+    source: this.$_searchQuery,
+    computation: () => new Set<string>(),
+  })
 
   // the search result to load episodes for
   private readonly $_mediaSearchDetails = signal<MediaSearchDetails | null>(
@@ -132,7 +152,9 @@ export class KazumiService {
 
   private readonly localPoliciesOptions = queryOptions({
     queryFn: async () => {
-      const policies = await this.db.policies.toArray()
+      const policies = (await this.db.policies.toArray()).map(
+        normalizeStoredPolicy
+      )
       const orderSetting = await this.db.getOrders()
 
       return sortArrayByOrder(policies, orderSetting, (p) => p.name)
@@ -142,7 +164,7 @@ export class KazumiService {
 
   private readonly manifestsOptions = queryOptions({
     queryFn: async () => {
-      const result = await withTimeout(getManifest(), 5000)
+      const result = await withTimeout(getManifest(environment.apiRoot), 5000)
       if (!result.success) throw result.error
       return result.data
     },
@@ -174,9 +196,16 @@ export class KazumiService {
   readonly addPolicyMutation = injectMutation(() => ({
     mutationKey: queryKeys.kazumi.local.all(),
     mutationFn: async (name: string) => {
-      const policy = await withTimeout(getPolicy(`${name}.json`), 5000)
+      const policy = await withTimeout(
+        getPolicy(environment.apiRoot, `${name}.json`),
+        5000
+      )
       if (!policy.success) throw policy.error
       const policyData = policy.data
+
+      if (!isXPathPolicy(policyData)) {
+        throw new Error('该规则使用 API 模式，当前版本暂不支持')
+      }
 
       await this.db.transaction(
         'rw',
@@ -198,7 +227,16 @@ export class KazumiService {
       return name
     },
     onMutate: (name) => {
+      this.$_importErrors.update((errors) => {
+        const next = new Map(errors)
+        next.delete(name)
+        return next
+      })
       this.$_inProgressImports.update((s) => new Set(s).add(name))
+    },
+    onError: (error, name) => {
+      const reason = error instanceof Error ? error.message : String(error)
+      this.$_importErrors.update((errors) => new Map(errors).set(name, reason))
     },
     onSettled: (_, __, name) => {
       this.$_inProgressImports.update((s) => {
@@ -285,25 +323,43 @@ export class KazumiService {
       const activePolicy = this.$_activePolicy()
       // skip if there is no query
       if (!activePolicy || !this.$_searchQuery()) return
-      this.$_visitedTabs.update((m) => {
-        m.set(activePolicy.name, true)
-        return m
-      })
+      this.$_visitedTabs.update((tabs) => new Set(tabs).add(activePolicy.name))
     })
   }
 
+  isRuleSearched(name: string): boolean {
+    return (
+      this.searchPreferences.$searchAllRules() || this.$_visitedTabs().has(name)
+    )
+  }
+
   getSearchQueryOptions(keyword: string, policy: KazumiPolicy) {
+    const trimmedKeyword = keyword.trim()
     return queryOptions({
-      queryFn: async () => {
-        return lastValueFrom(
-          this.extensionMessagingService.single('kazumiSearch', {
-            keyword,
-            policy,
-          })
+      // The queryFn must not read TanStack's abort signal: that would make
+      // TanStack cancel the search, extension window and all, as soon as the
+      // user leaves the page. Searches the user has moved on from are skipped
+      // by the limiter instead, when their turn comes.
+      queryFn: () => {
+        return this.searchSlots(
+          () =>
+            lastValueFrom(
+              this.extensionMessagingService.single('kazumiSearch', {
+                keyword: trimmedKeyword,
+                policy,
+              })
+            ),
+          {
+            isStale: () => this.$_searchQuery().trim() !== trimmedKeyword,
+            isUrgent: () => this.$_activePolicy()?.name === policy.name,
+          }
         )
       },
-      queryKey: queryKeys.kazumi.search(policy.name, keyword),
-      enabled: !!keyword.trim(),
+      queryKey: queryKeys.kazumi.search(policy.name, trimmedKeyword),
+      enabled:
+        !!trimmedKeyword &&
+        isXPathPolicy(policy) &&
+        this.isRuleSearched(policy.name),
       staleTime: Number.POSITIVE_INFINITY,
     })
   }

@@ -5,7 +5,7 @@ import {
   type EpisodeMeta,
   LEGACY_MACCMS_ID,
   type WithSeason,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import type { ManifestRunner } from '@mr-quin/dango'
 import { fakeBrowser } from '@webext-core/fake-browser'
 import { Dexie } from 'dexie'
@@ -14,7 +14,6 @@ import { backgroundContainerModule } from '@/background/ioc'
 import { BookmarkService } from '@/background/services/persistence/BookmarkService'
 import { DanmakuService } from '@/background/services/persistence/DanmakuService'
 import { SeasonService } from '@/background/services/persistence/SeasonService'
-import { EXTENSION_VERSION } from '@/common/constants'
 import { DANMAKU_DB_NAME, DanmakuAnywhereDb } from '@/common/db/db'
 import { LoggerSymbol } from '@/common/Logger'
 import { Language } from '@/common/localization/language'
@@ -22,12 +21,19 @@ import { ExtensionOptionsService } from '@/common/options/extensionOptions/servi
 import type { ProviderConfig } from '@/common/options/providerConfig/schema'
 import { ProviderConfigService } from '@/common/options/providerConfig/service'
 import {
+  capabilitiesFromManifest,
+  LEGACY_MACCMS_CAPABILITIES,
+  type SourceCapabilities,
+  type SourceStatus,
+} from '@/common/providers/sourceCapabilities'
+import {
   createTestContainer,
   type TestContainerOverride,
 } from '@/tests/createTestContainer'
+import { createUpgradeContainer } from '@/tests/createUpgradeContainer'
 import { makeSeason, makeSeasonInsert } from '@/tests/factories'
 import { silentLogger } from '@/tests/silentLogger'
-import type { IDanmakuProvider } from './IDanmakuProvider'
+import type { SourceProvider } from './IDanmakuProvider'
 import { MANIFEST_RUN_OPTIONS } from './ManifestProviderService'
 import { ManifestRegistry } from './ManifestRegistry'
 import { DanmakuProviderFactory } from './ProviderFactory'
@@ -61,16 +67,39 @@ function makeConfig(manifestId: string): ProviderConfig {
   }
 }
 
-function makeProvider(
-  overrides: Partial<
-    Pick<IDanmakuProvider, 'search' | 'getEpisodes' | 'getDanmaku'>
-  > = {}
-): Pick<IDanmakuProvider, 'search' | 'getEpisodes' | 'getDanmaku'> {
+type ProviderDouble = Pick<
+  SourceProvider,
+  'kind' | 'getStatus' | 'search' | 'getEpisodes' | 'getDanmaku'
+>
+
+const MANIFEST_CAPABILITIES = capabilitiesFromManifest({
+  search: {},
+  episodes: {},
+  danmaku: {},
+})
+
+function available(capabilities: SourceCapabilities) {
+  return vi.fn(
+    async (): Promise<SourceStatus> => ({ status: 'available', capabilities })
+  )
+}
+
+function makeProvider(overrides: Partial<ProviderDouble> = {}): ProviderDouble {
   return {
+    kind: 'source',
+    getStatus: available(MANIFEST_CAPABILITIES),
     search: vi.fn(async () => []),
     getEpisodes: vi.fn(async () => []),
     getDanmaku: vi.fn(async () => []),
     ...overrides,
+  }
+}
+
+function makeMacCmsProvider(results: unknown[] = []) {
+  return {
+    kind: 'searchOnly' as const,
+    getStatus: available(LEGACY_MACCMS_CAPABILITIES),
+    search: vi.fn(async () => results),
   }
 }
 
@@ -89,6 +118,10 @@ interface ServiceDoubles {
 // each collaborator double is typed against the class it stands in for
 // instead of blanket-casting the whole constructor argument list. A test
 // only overrides the collaborators its scenario actually touches.
+function runBatch<T>(run: () => Promise<T>): Promise<T> {
+  return run()
+}
+
 function buildService(doubles: ServiceDoubles = {}) {
   const overrides: TestContainerOverride<unknown>[] = [
     { identifier: DanmakuService, value: doubles.danmakuService ?? {} },
@@ -100,7 +133,7 @@ function buildService(doubles: ServiceDoubles = {}) {
     { identifier: DanmakuProviderFactory, value: doubles.factory ?? vi.fn() },
     {
       identifier: ManifestRegistry,
-      value: doubles.registry ?? { ready: Promise.resolve() },
+      value: doubles.registry ?? {},
     },
     { identifier: BookmarkService, value: doubles.bookmarkService ?? {} },
     { identifier: LoggerSymbol, value: doubles.logger ?? silentLogger },
@@ -123,7 +156,7 @@ function comments(count: number): CommentEntity[] {
 
 function build(
   config: ProviderConfig,
-  provider: Pick<IDanmakuProvider, 'search' | 'getEpisodes' | 'getDanmaku'>,
+  provider: object,
   opts: {
     findExisting?: unknown
     existingDanmaku?: unknown[]
@@ -178,11 +211,11 @@ describe('ProviderService.probeLogin', () => {
     // runLoginProbe<T = unknown> is generic, so a vi.fn double can't satisfy
     // ManifestRunner's real signature without an unsafe cast.
     const getRunner = vi.fn<ManifestRegistry['getRunner']>(
-      () => ({ runLoginProbe }) as unknown as ManifestRunner // lint-specs-allow-cast: generic method signature, see comment above
+      async () => ({ runLoginProbe }) as unknown as ManifestRunner // lint-specs-allow-cast: generic method signature, see comment above
     )
     const service = buildService({
       factory: vi.fn(() => makeProvider()),
-      registry: { ready: Promise.resolve(), getRunner },
+      registry: { getRunner },
     })
 
     await service.probeLogin('dandanplay')
@@ -194,11 +227,11 @@ describe('ProviderService.probeLogin', () => {
 describe('ProviderService.getManifestSpec', () => {
   function buildWithManifest(manifest: Record<string, unknown>) {
     const getRunner = vi.fn<ManifestRegistry['getRunner']>(
-      () => ({ manifest }) as ManifestRunner
+      async () => ({ manifest }) as ManifestRunner
     )
     return buildService({
       factory: vi.fn(() => makeProvider()),
-      registry: { ready: Promise.resolve(), getRunner },
+      registry: { getRunner },
     })
   }
 
@@ -243,12 +276,12 @@ describe('ProviderService.getManifestSpec', () => {
   })
 
   it('rejects when no manifest is registered for the id', async () => {
-    const getRunner = vi.fn<ManifestRegistry['getRunner']>(() => {
+    const getRunner = vi.fn<ManifestRegistry['getRunner']>(async () => {
       throw new Error('no manifest registered with id: missing')
     })
     const service = buildService({
       factory: vi.fn(() => makeProvider()),
-      registry: { ready: Promise.resolve(), getRunner },
+      registry: { getRunner },
     })
 
     await expect(service.getManifestSpec('missing')).rejects.toThrow()
@@ -272,13 +305,16 @@ describe('ProviderService legacy-maccms decoupling', () => {
     })
 
     it('throws for a legacy MacCMS config, whose provider has no episode fetch', async () => {
-      const { service } = build(makeConfig(LEGACY_MACCMS_ID), {
-        search: vi.fn(async () => []),
-      })
-
-      await expect(service.fetchEpisodesBySeason(1)).rejects.toThrow(
-        'does not support fetching episodes'
+      const { service } = build(
+        makeConfig(LEGACY_MACCMS_ID),
+        makeMacCmsProvider()
       )
+
+      await expect(service.fetchEpisodesBySeason(1)).rejects.toMatchObject({
+        name: 'SourceError',
+        problem: 'episodesUnsupported',
+        sourceName: LEGACY_MACCMS_ID,
+      })
     })
 
     it('throws a source-removed error when the season is orphaned', async () => {
@@ -287,9 +323,10 @@ describe('ProviderService legacy-maccms decoupling', () => {
         configMissing: true,
       })
 
-      await expect(service.fetchEpisodesBySeason(1)).rejects.toThrow(
-        'This source has been removed'
-      )
+      await expect(service.fetchEpisodesBySeason(1)).rejects.toMatchObject({
+        name: 'SourceError',
+        problem: 'sourceRemoved',
+      })
       expect(provider.getEpisodes).not.toHaveBeenCalled()
     })
   })
@@ -302,7 +339,7 @@ describe('ProviderService legacy-maccms decoupling', () => {
       }
       const existing = { ...insert, id: 99 }
       const provider = makeProvider({
-        search: vi.fn<IDanmakuProvider['search']>(async () => [insert]),
+        search: vi.fn<SourceProvider['search']>(async () => [insert]),
       })
       const { service, seasonService } = build(makeConfig('iqiyi'), provider, {
         findExisting: existing,
@@ -324,9 +361,7 @@ describe('ProviderService legacy-maccms decoupling', () => {
         ...makeSeasonInsert({ indexedId: 'c', title: 'C' }),
         provider: DanmakuSourceType.MacCMS,
       }
-      const provider = makeProvider({
-        search: vi.fn<IDanmakuProvider['search']>(async () => [customSeason]),
-      })
+      const provider = makeMacCmsProvider([customSeason])
       const { service, seasonService } = build(
         makeConfig(LEGACY_MACCMS_ID),
         provider,
@@ -439,13 +474,14 @@ describe('ProviderService legacy-maccms decoupling', () => {
           providerConfigId: maccmsConfig.id,
         },
       } as WithSeason<EpisodeMeta>
-      const { service } = build(maccmsConfig, {
-        search: vi.fn(async () => []),
-      })
+      const { service } = build(maccmsConfig, makeMacCmsProvider())
 
       await expect(
         service.getDanmaku({ type: 'by-meta', meta: maccmsMeta, options: {} })
-      ).rejects.toThrow('episodes cannot be refetched')
+      ).rejects.toMatchObject({
+        name: 'SourceError',
+        problem: 'danmakuUnsupported',
+      })
     })
 
     it('throws a source-removed error when forcing an orphaned season', async () => {
@@ -460,9 +496,131 @@ describe('ProviderService legacy-maccms decoupling', () => {
           meta,
           options: { forceUpdate: true },
         })
-      ).rejects.toThrow('This source has been removed')
+      ).rejects.toMatchObject({ name: 'SourceError', problem: 'sourceRemoved' })
       expect(provider.getDanmaku).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe('ProviderService capability gates', () => {
+  const searchOnly = capabilitiesFromManifest({ search: {} })
+  const config = makeConfig('search-only')
+
+  it('refuses to search a manifest without a search pipeline', async () => {
+    const provider = makeProvider({
+      getStatus: available(capabilitiesFromManifest({ episodes: {} })),
+    })
+    const { service } = build(config, provider)
+
+    await expect(
+      service.searchSeason({ providerConfigId: config.id, keyword: 'a' })
+    ).rejects.toMatchObject({
+      name: 'SourceError',
+      problem: 'searchUnsupported',
+    })
+    expect(provider.search).not.toHaveBeenCalled()
+  })
+
+  it('refuses episodes for a manifest without an episodes pipeline', async () => {
+    const provider = makeProvider({
+      getStatus: available(searchOnly),
+    })
+    const { service } = build(config, provider)
+
+    await expect(service.fetchEpisodesBySeason(1)).rejects.toMatchObject({
+      name: 'SourceError',
+      problem: 'episodesUnsupported',
+      sourceName: config.name,
+    })
+    expect(provider.getEpisodes).not.toHaveBeenCalled()
+  })
+
+  it('refuses danmaku for a manifest without a danmaku pipeline', async () => {
+    const provider = makeProvider({
+      getStatus: available(searchOnly),
+    })
+    const { service } = build(config, provider)
+    const meta = {
+      indexedId: 'ep1',
+      seasonId: 1,
+      providerIds: {},
+      season: {
+        id: 1,
+        manifestId: config.manifestId,
+        providerConfigId: config.id,
+      },
+    } as WithSeason<EpisodeMeta>
+
+    await expect(
+      service.getDanmaku({ type: 'by-meta', meta, options: {} })
+    ).rejects.toMatchObject({
+      name: 'SourceError',
+      problem: 'danmakuUnsupported',
+    })
+    expect(provider.getDanmaku).not.toHaveBeenCalled()
+  })
+
+  it('refuses a season refresh when its manifest has no season pipeline', async () => {
+    const season = makeSeason({
+      manifestId: config.manifestId,
+      providerConfigId: config.id,
+    })
+    const getSeason = vi.fn(async () => null)
+    const upsert = vi.fn()
+    const service = buildService({
+      seasonService: { filter: vi.fn(async () => [season]), upsert },
+      providerConfigService: { getAll: vi.fn(async () => [config]) },
+      factory: vi.fn(() => ({
+        kind: 'source',
+        getStatus: available(MANIFEST_CAPABILITIES),
+        getSeason,
+      })),
+    })
+
+    await expect(
+      service.refreshSeason({ id: season.id })
+    ).rejects.toMatchObject({
+      name: 'SourceError',
+      problem: 'seasonRefreshUnsupported',
+    })
+    expect(getSeason).not.toHaveBeenCalled()
+    expect(upsert).not.toHaveBeenCalled()
+  })
+})
+
+describe('ProviderService.parseUrl', () => {
+  it('falls through to the next source that can parse links', async () => {
+    const first = makeConfig('first')
+    const second = makeConfig('second')
+    const parses = available(capabilitiesFromManifest({ parseUrl: {} }))
+    const season = makeSeason()
+    const missed = vi.fn(async () => null)
+    const parsed = vi.fn(async () => ({
+      seasonInsert: makeSeasonInsert(),
+      episodeMeta: { title: 'E', indexedId: 'ep', providerIds: {} },
+    }))
+    const providers = new Map([
+      [first.id, { kind: 'source', getStatus: parses, parseUrl: missed }],
+      [second.id, { kind: 'source', getStatus: parses, parseUrl: parsed }],
+    ])
+    const service = buildService({
+      providerConfigService: { getAll: vi.fn(async () => [first, second]) },
+      seasonService: { upsert: vi.fn(async () => season) },
+      factory: vi.fn((config: ProviderConfig) => providers.get(config.id)),
+    })
+
+    const result = await service.parseUrl('x.example/play/1')
+
+    expect(result).toMatchObject({ indexedId: 'ep', season })
+    expect(missed).toHaveBeenCalledWith('https://x.example/play/1')
+  })
+
+  it('throws a no-parser source error when no source can parse the URL', async () => {
+    const { service } = build(makeConfig('iqiyi'), makeProvider())
+
+    await expect(
+      service.parseUrl('https://example.com/video/1')
+    ).rejects.toMatchObject({ name: 'SourceError', problem: 'noUrlParser' })
   })
 })
 
@@ -512,7 +670,7 @@ describe('ProviderService.getDanmaku against persisted episodes', () => {
     const first = Promise.withResolvers<CommentEntity[]>()
     const second = Promise.withResolvers<CommentEntity[]>()
     const getDanmaku = vi
-      .fn<NonNullable<IDanmakuProvider['getDanmaku']>>()
+      .fn<SourceProvider['getDanmaku']>()
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(second.promise)
     const getAll = vi.fn<ProviderConfigService['getAll']>(async () => [config])
@@ -654,18 +812,28 @@ describe('ProviderService.refreshCatalog', () => {
       async () => opts.pending
     )
     const update = vi.fn<ManifestRegistry['update']>(async () => 'synced')
-    const listManifests = vi.fn<ManifestRegistry['listManifests']>(() => [])
+    const listManifests = vi.fn<ManifestRegistry['listManifests']>(
+      async () => []
+    )
     const getLastCheckedAt = vi.fn<ManifestRegistry['getLastCheckedAt']>(
       async () => 0
     )
+    let batchDepth = 0
     const registry = {
-      ready: Promise.resolve(),
       update,
       getPendingUpdates,
       applyUpdates,
       recordChecked,
       listManifests,
       getLastCheckedAt,
+      batchChanges: async <T>(run: () => Promise<T>): Promise<T> => {
+        batchDepth += 1
+        try {
+          return await run()
+        } finally {
+          batchDepth -= 1
+        }
+      },
     }
 
     const getAll = vi.fn<ProviderConfigService['getAll']>(async () =>
@@ -678,7 +846,14 @@ describe('ProviderService.refreshCatalog', () => {
 
     const service = buildService({ providerConfigService, registry })
 
-    return { service, applyUpdates, recordChecked, getPendingUpdates }
+    return {
+      service,
+      registry,
+      applyUpdates,
+      recordChecked,
+      getPendingUpdates,
+      inBatch: () => batchDepth > 0,
+    }
   }
 
   it('auto-applies updates for uninstalled manifests only', async () => {
@@ -693,6 +868,30 @@ describe('ProviderService.refreshCatalog', () => {
     await service.refreshCatalog()
 
     expect(applyUpdates).toHaveBeenCalledWith(['iqiyi'])
+  })
+
+  it('runs every registry write of a sync inside one batch', async () => {
+    const { service, registry, inBatch } = buildForRefresh({
+      pending: [
+        { manifestId: 'iqiyi', fromVersion: '1.0.0', toVersion: '2.0.0' },
+      ],
+      installedManifestIds: [],
+    })
+    const callsInBatch: boolean[] = []
+    registry.update.mockImplementation(async () => {
+      callsInBatch.push(inBatch())
+      return 'synced'
+    })
+    registry.applyUpdates.mockImplementation(async () => {
+      callsInBatch.push(inBatch())
+    })
+    registry.recordChecked.mockImplementation(async () => {
+      callsInBatch.push(inBatch())
+    })
+
+    await service.refreshCatalog()
+
+    expect(callsInBatch).toEqual([true, true, true])
   })
 
   it('does not apply anything when every pending update is installed', async () => {
@@ -741,18 +940,20 @@ describe('ProviderService.refreshCatalog', () => {
       async () => []
     )
     const update = vi.fn<ManifestRegistry['update']>(async () => 'unreachable')
-    const listManifests = vi.fn<ManifestRegistry['listManifests']>(() => [])
+    const listManifests = vi.fn<ManifestRegistry['listManifests']>(
+      async () => []
+    )
     const getLastCheckedAt = vi.fn<ManifestRegistry['getLastCheckedAt']>(
       async () => 0
     )
     const registry = {
-      ready: Promise.resolve(),
       update,
       getPendingUpdates,
       applyUpdates: vi.fn(async () => {}),
       recordChecked,
       listManifests,
       getLastCheckedAt,
+      batchChanges: runBatch,
     }
     const hasSeeded = vi.fn<ProviderConfigService['hasSeeded']>(
       async () => true
@@ -775,18 +976,20 @@ describe('ProviderService.refreshCatalog', () => {
     const getPendingUpdates = vi.fn<ManifestRegistry['getPendingUpdates']>(
       async () => []
     )
-    const listManifests = vi.fn<ManifestRegistry['listManifests']>(() => [])
+    const listManifests = vi.fn<ManifestRegistry['listManifests']>(
+      async () => []
+    )
     const getLastCheckedAt = vi.fn<ManifestRegistry['getLastCheckedAt']>(
       async () => 0
     )
     const registry = {
-      ready: Promise.resolve(),
       update,
       getPendingUpdates,
       applyUpdates: vi.fn(async () => {}),
       recordChecked: vi.fn(async () => {}),
       listManifests,
       getLastCheckedAt,
+      batchChanges: runBatch,
     }
     const hasSeeded = vi.fn<ProviderConfigService['hasSeeded']>(
       async () => true
@@ -860,7 +1063,7 @@ describe('ProviderService.seedDefaultProviders', () => {
       getAll,
     }
 
-    const listManifests = vi.fn(() => opts.manifests ?? DEFAULT_MANIFESTS)
+    const listManifests = vi.fn(async () => opts.manifests ?? DEFAULT_MANIFESTS)
     const recordChecked = vi.fn<ManifestRegistry['recordChecked']>(
       async () => {}
     )
@@ -871,11 +1074,11 @@ describe('ProviderService.seedDefaultProviders', () => {
       async () => []
     )
     const registry = {
-      ready: Promise.resolve(),
       update,
       getPendingUpdates,
       recordChecked,
       listManifests,
+      batchChanges: runBatch,
     }
 
     const service = buildService({
@@ -945,12 +1148,9 @@ describe('ProviderService.seedDefaultProviders', () => {
   })
 
   it('leaves the seed flag unset when the config write fails', async () => {
-    await fakeBrowser.storage.local.set({
-      lastVersion: { lastVersion: EXTENSION_VERSION },
-    })
-    const providerConfigService = createTestContainer([
-      backgroundContainerModule,
-    ]).get(ProviderConfigService)
+    const providerConfigService = createUpgradeContainer().get(
+      ProviderConfigService
+    )
     await fakeBrowser.storage.sync.set({
       providerConfig: {
         data: [],
@@ -1215,7 +1415,6 @@ describe('ProviderService.deleteUserManifest', () => {
       opts.kind ? { manifest: {}, kind: opts.kind } : undefined
     )
     const registry = {
-      ready: Promise.resolve(),
       getSource,
       unregister,
     }
@@ -1312,6 +1511,8 @@ describe('ProviderService season resolution by config id', () => {
 
   function buildWithDb(configs: ProviderConfig[]) {
     const factory = vi.fn((config: ProviderConfig) => ({
+      kind: 'source',
+      getStatus: available(MANIFEST_CAPABILITIES),
       search: async () => [
         makeSeasonInsert({
           manifestId: config.manifestId,
@@ -1365,8 +1566,8 @@ describe('ProviderService season resolution by config id', () => {
     )
     const service = buildWithDb([serverAAgain])
 
-    await expect(service.fetchEpisodesBySeason(orphan.id)).rejects.toThrow(
-      'This source has been removed'
-    )
+    await expect(
+      service.fetchEpisodesBySeason(orphan.id)
+    ).rejects.toMatchObject({ name: 'SourceError', problem: 'sourceRemoved' })
   })
 })

@@ -8,11 +8,13 @@ import { IMAGE_ASSETS } from '@/images/ImageAssets'
 interface EmptyDanmakuTreeProps {
   onImport: () => void
   onGoSearch: () => void
+  showMountHint?: boolean
 }
 
 export const EmptyDanmakuTree = ({
   onImport,
   onGoSearch,
+  showMountHint = false,
 }: EmptyDanmakuTreeProps) => {
   const { t } = useTranslation()
 
@@ -36,7 +38,7 @@ export const EmptyDanmakuTree = ({
             mb: 2,
           }}
         >
-          {t('mountPage.libraryEmpty', 'The Library is empty...')}
+          {t('mountPage.libraryEmpty', 'The library is empty…')}
         </Typography>
         <Button
           onClick={onGoSearch}
@@ -61,6 +63,18 @@ export const EmptyDanmakuTree = ({
         >
           {t('mountPage.importDanmaku', 'Import danmaku (or drag and drop)')}
         </Button>
+        {showMountHint && (
+          <Typography
+            variant="body2"
+            data-testid="library-mount-hint"
+            sx={{ mt: 2, color: 'text.secondary', textAlign: 'center' }}
+          >
+            {t(
+              'mountPage.emptyMountHint',
+              'Search for the show, download an episode, then click it to mount it on this video.'
+            )}
+          </Typography>
+        )}
       </Stack>
       <SuspenseImage
         sx={{

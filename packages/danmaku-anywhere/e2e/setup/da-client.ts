@@ -7,7 +7,7 @@ import type {
   EpisodeStub,
   Season,
   SeasonInsert,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import type { BrowserContext, Worker } from '@playwright/test'
 import type { ExtensionOptions } from '../../src/common/options/extensionOptions/schema'
 import type { ProviderConfig } from '../../src/common/options/providerConfig/schema'
@@ -103,6 +103,11 @@ export class DaClient {
       this.sw.evaluate((e) => self.__da.episode.add(e), insert),
     get: (id: number): Promise<Episode | undefined> =>
       this.sw.evaluate((id) => self.__da.episode.get(id), id),
+    setTimeUpdated: (id: number, timeUpdated: number): Promise<void> =>
+      this.sw.evaluate(
+        ([id, time]) => self.__da.episode.setTimeUpdated(id, time),
+        [id, timeUpdated] as const
+      ),
     addCustom: (insert: CustomEpisodeInsert): Promise<CustomEpisode> =>
       this.sw.evaluate((e) => self.__da.episode.addCustom(e), insert),
     listCustom: (): Promise<CustomEpisode[]> =>

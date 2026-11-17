@@ -1,4 +1,4 @@
-import type { CustomSeason, Season } from '@danmaku-anywhere/danmaku-converter'
+import type { CustomSeason, Season } from '@danmaku-anywhere/danmaku-model'
 import { Favorite, FavoriteBorder } from '@mui/icons-material'
 import { Button, CircularProgress, Tooltip } from '@mui/material'
 import type { ReactElement } from 'react'
@@ -53,7 +53,7 @@ export const BookmarkToggleButton = ({
     <Tooltip
       title={t(
         'bookmark.tooltip',
-        'Save to your library to see all episodes anytime, including ones you have not downloaded yet.'
+        "Follow to see all episodes in your library anytime, including ones you have not downloaded yet, and to preload the next episode's danmaku while you watch."
       )}
       placement="bottom-end"
     >

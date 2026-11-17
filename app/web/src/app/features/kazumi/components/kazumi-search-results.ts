@@ -2,11 +2,15 @@ import { JsonPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   input,
   output,
 } from '@angular/core'
-import type { KazumiPolicy } from '@danmaku-anywhere/danmaku-provider/kazumi'
+import {
+  isXPathPolicy,
+  type KazumiPolicy,
+} from '@danmaku-anywhere/extension-protocol'
 import { injectQuery } from '@tanstack/angular-query-experimental'
 import { Button, ButtonDirective } from 'primeng/button'
 import { Divider } from 'primeng/divider'
@@ -29,6 +33,10 @@ import { KazumiService } from '../services/kazumi.service'
   ],
   template: `
     <div>
+      @if (!$isRunnable()) {
+        <p class="p-4">该规则使用 API 模式，当前版本暂不支持搜索</p>
+      }
+
       @if (searchQuery.isFetching()) {
         @for (i of [1, 2, 3]; track i) {
           <p-skeleton styleClass="my-2" width="100%" height="76px" />
@@ -82,13 +90,13 @@ export class SearchResultsComponent {
   policy = input.required<KazumiPolicy>()
   keyword = input('')
   isActive = input(false)
-  isVisited = input(false)
   itemClick = output<{ name: string; url: string }>()
 
   private kazumiService = inject(KazumiService)
 
-  protected searchQuery = injectQuery(() => ({
-    ...this.kazumiService.getSearchQueryOptions(this.keyword(), this.policy()),
-    enabled: !!this.keyword().trim() && this.isVisited(),
-  }))
+  protected $isRunnable = computed(() => isXPathPolicy(this.policy()))
+
+  protected searchQuery = injectQuery(() =>
+    this.kazumiService.getSearchQueryOptions(this.keyword(), this.policy())
+  )
 }

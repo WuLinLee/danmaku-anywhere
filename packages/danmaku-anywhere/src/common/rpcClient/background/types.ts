@@ -11,7 +11,7 @@ import type {
   Season,
   SeasonInsert,
   WithSeason,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import type { ExtractTitleResponse } from '@danmaku-anywhere/danmaku-provider/genAi'
 import type {
   KazumiChapterPayload,
@@ -19,7 +19,7 @@ import type {
   KazumiSearchPayload,
   KazumiSearchResult,
   SetHeaderRule,
-} from '@danmaku-anywhere/web-scraper'
+} from '@danmaku-anywhere/extension-protocol'
 import type { ConfigSchema } from '@mr-quin/dango'
 import type {
   GenericVodSearchData,
@@ -67,6 +67,10 @@ import type {
   MountConfig,
   MountConfigAiConfig,
 } from '@/common/options/mountConfig/schema'
+import type {
+  SourceCapabilityAnswer,
+  UrlSourceAnswer,
+} from '@/common/providers/sourceCapabilities'
 import type { SeasonMapSnapshot } from '@/common/seasonMap/SeasonMap'
 import type { OcclusionStatus } from '@/content/player/occlusion/Occlusion.types'
 import type { RPCDef } from '../../rpc/types'
@@ -194,6 +198,7 @@ export type BackgroundMethods = {
   authSignOut: RPCDef<void, AuthSignOutResult>
   authDeleteAccount: RPCDef<void, AuthSignOutResult>
   mediaParseUrl: RPCDef<{ url: string }, WithSeason<EpisodeMeta>>
+  mediaFindUrlSource: RPCDef<{ url: string }, UrlSourceAnswer>
   seasonSearch: RPCDef<
     SeasonSearchRequest,
     (Season | SeasonInsert | CustomSeason)[]
@@ -223,9 +228,14 @@ export type BackgroundMethods = {
   seasonMapDeleteMany: RPCDef<{ keys: string[] }, void>
 
   seasonMapGetAll: RPCDef<void, SeasonMapSnapshot[]>
+  danmakuCountPurgeable: RPCDef<number, number>
   danmakuPurgeCache: RPCDef<number, number>
   bilibiliSetCookies: RPCDef<void, void>
   providerProbeLogin: RPCDef<{ manifestId: string }, ProviderLoginStatus>
+  providerGetCapabilities: RPCDef<
+    { providerConfigId: string },
+    SourceCapabilityAnswer
+  >
   providerGetManifestSpec: RPCDef<
     { manifestId: string; locale?: string },
     ProviderManifestSpec
@@ -260,7 +270,7 @@ export type BackgroundMethods = {
   >
   providerDeleteUserManifest: RPCDef<{ manifestId: string }, void>
   fetchImage: RPCDef<{ src: string }, string | null>
-  getActiveTabUrl: RPCDef<void, string | null>
+  getActiveTabUrl: RPCDef<{ tabId?: number } | void, string | null>
   getFrameId: RPCDef<void, number>
   getExtensionManifest: RPCDef<void, chrome.runtime.ManifestV3>
   getAlarm: RPCDef<string, chrome.alarms.Alarm | null>
@@ -283,10 +293,10 @@ export type BackgroundMethods = {
     ExtractTitleResponse['result']
   >
   openPopupInNewWindow: RPCDef<
-    { path: string; width?: number; height?: number },
+    { path: string; tabId?: number; width?: number; height?: number },
     void
   >
-  openPopupInNewTab: RPCDef<{ path: string }, void>
+  openPopupInNewTab: RPCDef<{ path: string; tabId?: number }, void>
   getConfigMacCms: RPCDef<{ force?: boolean } | void, BaseUrlConfig>
   getConfigDanmuIcu: RPCDef<{ force?: boolean } | void, BaseUrlConfig>
   providerConfigDelete: RPCDef<string, void>
@@ -297,6 +307,8 @@ export type BackgroundMethods = {
   cloudBackupCreate: RPCDef<void, { success: boolean; id: string }>
   cloudBackupDownload: RPCDef<string, unknown>
   dataWipeDanmaku: RPCDef<{ includeCustomEpisodes: boolean }, void>
+  optionsEnsureUpgraded: RPCDef<void, void>
+  optionsUpgrade: RPCDef<void, void>
   bookmarkAdd: RPCDef<BookmarkAddInput, Bookmark>
   bookmarkDelete: RPCDef<BookmarkDeleteInput, void>
   bookmarkDeleteBySeason: RPCDef<BookmarkDeleteBySeasonInput, void>
@@ -354,21 +366,46 @@ export interface PipelineEntry {
   provider?: DanmakuSourceType
 }
 
+export interface ControllerSession {
+  id: string
+  startedAt: number
+}
+
+export type PlayerContent =
+  | { kind: 'mount'; comments: CommentEntity[] }
+  | { kind: 'unmount' }
+  | { kind: 'keep' }
+
+/**
+ * The controller's desired state for one frame. `version` grows with every
+ * change and `contentVersion` is the version that last changed what is
+ * mounted, so a player can drop anything older than what it already applied.
+ */
+export interface PlayerApplyCommand {
+  session: string
+  version: number
+  contentVersion: number
+  content: PlayerContent
+  visible: boolean
+}
+
 // Controller -> Player communication
 // Here the frameId is used to identify the DESTINATION frame
 export type PlayerRelayCommands = {
-  'relay:command:mount': RPCDef<
-    InputWithFrameId<CommentEntity[]>,
-    boolean,
+  'relay:command:apply': RPCDef<
+    InputWithFrameId<PlayerApplyCommand>,
+    void,
     FrameContext
   >
-  'relay:command:unmount': RPCDef<InputWithFrameId<void>, boolean, FrameContext>
-  'relay:command:start': RPCDef<InputWithFrameId<string>, void, FrameContext>
+  'relay:command:start': RPCDef<
+    InputWithFrameId<{ query: string; session: ControllerSession }>,
+    void,
+    FrameContext
+  >
   'relay:command:seek': RPCDef<InputWithFrameId<number>, void, FrameContext>
   'relay:command:enterPip': RPCDef<InputWithFrameId<void>, void, FrameContext>
-  'relay:command:show': RPCDef<InputWithFrameId<boolean>, void, FrameContext>
   'relay:command:controllerReady': RPCDef<
-    InputWithFrameId<void>,
+    InputWithFrameId<{ session: ControllerSession }>,
     void,
     FrameContext
   >

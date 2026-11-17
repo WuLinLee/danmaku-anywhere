@@ -139,9 +139,7 @@ export class ProvidersPage {
       .getByRole('button', { name: /Add|添加/ })
       .first()
       .click()
-    await this.page
-      .getByRole('menuitem', { name: /Author a manifest|新建配置/ })
-      .click()
+    await this.page.getByTestId('drilldown-menu-item-author-manifest').click()
   }
 
   async addDanDanPlayProvider(): Promise<void> {
@@ -153,7 +151,7 @@ export class ProvidersPage {
   }
 
   manifestJsonField(): Locator {
-    return this.page.getByLabel(/Manifest JSON|配置 JSON/)
+    return this.page.getByLabel(/Manifest JSON|清单 JSON/)
   }
 
   setManifestJson(value: string): Promise<void> {
@@ -161,7 +159,7 @@ export class ProvidersPage {
   }
 
   manifestValid(): Locator {
-    return this.page.getByText(/Manifest is valid|配置有效/)
+    return this.page.getByText(/Manifest is valid|清单有效/)
   }
 
   manifestJsonError(): Locator {

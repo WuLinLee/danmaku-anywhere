@@ -2,20 +2,20 @@ import type { KnipConfig } from 'knip'
 
 const config: KnipConfig = {
   // docs and legacy are not pnpm workspaces
-  ignore: ['docs/**', 'legacy/**'],
+  ignore: ['legacy/**'],
   workspaces: {
     '.': {
       entry: ['scripts/*.{ts,cjs}'],
     },
-    'packages/result': {},
     'packages/integration-policy': {},
     'packages/bangumi-api': {},
-    'packages/danmaku-converter': {},
+    'packages/danmaku-model': {},
     'packages/danmaku-engine': {},
     'packages/danmaku-provider': {
       entry: ['src/index.ts', 'src/providers/*/index.ts'],
     },
     'packages/web-scraper': {},
+    'packages/extension-protocol': {},
     'packages/danmaku-anywhere': {
       entry: [
         'src/background/index.ts',
@@ -30,12 +30,6 @@ const config: KnipConfig = {
       vite: false,
     },
     'app/web': {},
-    'backend/proxy': {
-      ignoreDependencies: [
-        // cloudflare:test is a virtual module provided by the Workers runtime
-        'cloudflare',
-      ],
-    },
   },
 }
 

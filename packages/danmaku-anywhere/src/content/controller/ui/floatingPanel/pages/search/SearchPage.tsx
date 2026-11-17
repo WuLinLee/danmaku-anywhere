@@ -2,9 +2,9 @@ import type {
   CustomSeason,
   Season,
   SeasonInsert,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import { Box, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUpsertSeason } from '@/common/anime/queries/useUpsertSeason'
 import { Center } from '@/common/components/Center'
@@ -20,13 +20,20 @@ import { useStore } from '@/content/controller/store/store'
 import { SeasonDetailsPage } from '@/content/controller/ui/floatingPanel/pages/search/SeasonDetailsPage'
 import { useShowAddSeasonMapDialog } from './AddSeasonMapDialog'
 
-export const SearchPage = (): React.ReactElement | null => {
+// A different show on the page starts the search over, closing a season
+// opened for the previous one.
+export function SearchPage() {
+  const showKey = useStore((state) => state.integration.mediaInfo?.getKey())
+  return <SearchPageContent key={showKey} />
+}
+
+function SearchPageContent(): React.ReactElement | null {
   const { t } = useTranslation()
   const { searchTitle, setSearchTitle, highlighterPortal, searchFocusToken } =
     usePopup()
   const { mediaInfo } = useStore.use.integration()
   const { enabledProviders } = useProviderConfig()
-  const { mountDanmaku } = useLoadDanmaku()
+  const { mountChosen } = useLoadDanmaku()
   const { data: seasonMaps } = useAllSeasonMap()
   const upsertSeason = useUpsertSeason()
 
@@ -39,13 +46,6 @@ export const SearchPage = (): React.ReactElement | null => {
   const [providerId, setProviderId] = useState<string>()
 
   const showAddSeasonMapDialog = useShowAddSeasonMapDialog()
-
-  useEffect(() => {
-    if (!mediaInfo) {
-      return
-    }
-    setSearchTitle(mediaInfo.title)
-  }, [mediaInfo])
 
   const handleSeasonClick = (
     season: Season | SeasonInsert | CustomSeason,
@@ -90,7 +90,7 @@ export const SearchPage = (): React.ReactElement | null => {
           <Typography>
             {t(
               'searchPage.error.noProviders',
-              'No danmaku sources enabled, please enable in settings'
+              'No danmaku sources enabled. Enable one on the Sources page.'
             )}
           </Typography>
         </Center>
@@ -117,7 +117,7 @@ export const SearchPage = (): React.ReactElement | null => {
       providerId={providerId}
       onProviderIdChange={setProviderId}
       onSeasonClick={handleSeasonClick}
-      onImportSuccess={(episode) => mountDanmaku([episode])}
+      onImportSuccess={(episode) => mountChosen([episode])}
       dragOverlayPortal={highlighterPortal}
       focusToken={searchFocusToken}
     />

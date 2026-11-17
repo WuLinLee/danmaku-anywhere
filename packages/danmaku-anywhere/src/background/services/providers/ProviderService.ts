@@ -4,7 +4,7 @@ import type {
   Season,
   SeasonInsert,
   WithSeason,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import { getDisplayStrings } from '@mr-quin/dango'
 import { inject, injectable } from 'inversify'
 import { BookmarkService } from '@/background/services/persistence/BookmarkService'
@@ -26,13 +26,14 @@ import {
 import { localizeLegacyBuiltinNames } from '@/common/options/providerConfig/localizeLegacyNames'
 import type { ProviderConfig } from '@/common/options/providerConfig/schema'
 import { ProviderConfigService } from '@/common/options/providerConfig/service'
-import { isLegacyMacCms } from '@/common/options/providerConfig/utils'
 import { resolveSeasonConfig } from '@/common/providers/resolveSeasonConfig'
+import { SourceError } from '@/common/providers/SourceError'
 import type {
   ProviderLoginStatus,
   ProviderManifestList,
   ProviderManifestSpec,
 } from '@/common/rpcClient/background/types'
+import { withUrlScheme } from '@/common/utils/link'
 import { invariant, isServiceWorker } from '@/common/utils/utils'
 import type { OmitSeasonId } from './IDanmakuProvider'
 import { MANIFEST_RUN_OPTIONS } from './ManifestProviderService'
@@ -42,10 +43,7 @@ import {
   type CatalogSyncResult,
   ManifestRegistry,
 } from './ManifestRegistry'
-import {
-  DanmakuProviderFactory,
-  type IDanmakuProviderFactory,
-} from './ProviderFactory'
+import { SourceCapabilityService } from './SourceCapabilityService'
 
 function enrichEpisode(
   episode: OmitSeasonId<EpisodeMeta>,
@@ -69,15 +67,15 @@ export class ProviderService {
     @inject(SeasonService) private seasonService: SeasonService,
     @inject(ProviderConfigService)
     private providerConfigService: ProviderConfigService,
-    @inject(DanmakuProviderFactory)
-    private danmakuProviderFactory: IDanmakuProviderFactory,
     @inject(ManifestRegistry)
     private manifestRegistry: ManifestRegistry,
     @inject(BookmarkService)
     private bookmarkService: BookmarkService,
     @inject(LoggerSymbol) logger: ILogger,
     @inject(ExtensionOptionsService)
-    private extensionOptions: ExtensionOptionsService
+    private extensionOptions: ExtensionOptionsService,
+    @inject(SourceCapabilityService)
+    private sourceCapabilities: SourceCapabilityService
   ) {
     invariant(
       isServiceWorker(),
@@ -93,15 +91,14 @@ export class ProviderService {
       params.providerConfigId
     )
 
-    const service = this.danmakuProviderFactory(providerConfig)
+    const service = await this.sourceCapabilities.searchProvider(providerConfig)
 
-    const seasonInserts = await service.search(params)
-    // TODO: fix this once we fold custom seasons into the season insert
-    if (isLegacyMacCms(providerConfig)) {
-      return seasonInserts as CustomSeason[]
+    // TODO: fold custom seasons into the season insert
+    if (service.kind === 'searchOnly') {
+      return service.search(params)
     }
     // Surface existing ids so bookmark / cache indicators still resolve.
-    const inserts = seasonInserts as SeasonInsert[]
+    const inserts = await service.search(params)
     return Promise.all(
       inserts.map(async (insert) => {
         const existing = await this.seasonService.findExisting(insert)
@@ -126,7 +123,8 @@ export class ProviderService {
       await this.providerConfigService.getAll()
     )
     if (!config) {
-      throw new Error(
+      throw new SourceError(
+        'sourceRemoved',
         'This source has been removed, so new danmaku cannot be fetched.'
       )
     }
@@ -140,12 +138,10 @@ export class ProviderService {
 
     const providerConfig = await this.getConfigForSeason(season)
 
-    const service = this.danmakuProviderFactory(providerConfig)
-    if (!service.getEpisodes) {
-      throw new Error(
-        `${providerConfig.name} does not support fetching episodes`
-      )
-    }
+    const service = await this.sourceCapabilities.sourceProvider(
+      providerConfig,
+      'episodes'
+    )
     const episodes = await service.getEpisodes(season.providerIds)
     return episodes.map((episode) => enrichEpisode(episode, season))
   }
@@ -158,10 +154,10 @@ export class ProviderService {
 
     const providerConfig = await this.getConfigForSeason(season)
 
-    const service = this.danmakuProviderFactory(providerConfig)
-    if (!service.getSeason) {
-      return
-    }
+    const service = await this.sourceCapabilities.sourceProvider(
+      providerConfig,
+      'seasonRefresh'
+    )
     const seasonInsert = await service.getSeason(season.providerIds)
     if (seasonInsert) {
       await this.seasonService.upsert(seasonInsert)
@@ -212,10 +208,10 @@ export class ProviderService {
 
     const config = await this.getConfigForSeason(meta.season)
 
-    const service = this.danmakuProviderFactory(config)
-    if (!service.getDanmaku) {
-      throw new Error(`${config.name} episodes cannot be refetched`)
-    }
+    const service = await this.sourceCapabilities.sourceProvider(
+      config,
+      'danmaku'
+    )
 
     const comments = await service.getDanmaku(resolved)
 
@@ -245,22 +241,11 @@ export class ProviderService {
     return { episode: { ...episode, season } }
   }
 
-  async parseUrl(url: string): Promise<WithSeason<EpisodeMeta>> {
-    // URL parsing is independent of provider enablement: the popup feeds
-    // any pasted URL regardless of which sources the user has toggled on.
-    // Disabling Bilibili would otherwise make a recognized bilibili.com
-    // URL fail with "No provider found".
-    await this.manifestRegistry.ready
-    const configs = await this.providerConfigService.getAll()
-    for (const config of configs) {
-      const service = this.danmakuProviderFactory(config)
-      if (!service.canParse?.(url)) {
-        continue
-      }
-      if (!service.parseUrl) {
-        continue
-      }
-      const result = await service.parseUrl(url)
+  async parseUrl(text: string): Promise<WithSeason<EpisodeMeta>> {
+    const url = withUrlScheme(text)
+    const parsers = await this.sourceCapabilities.getUrlParsers()
+    for (const { provider } of parsers) {
+      const result = await provider.parseUrl(url)
       if (result) {
         const { episodeMeta, seasonInsert } = result
         const season = await this.seasonService.upsert(seasonInsert)
@@ -268,14 +253,15 @@ export class ProviderService {
       }
     }
 
-    throw new Error('No provider found capable of parsing URL')
+    throw new SourceError(
+      'noUrlParser',
+      'No provider found capable of parsing URL'
+    )
   }
 
   async probeLogin<T = unknown>(manifestId: string): Promise<T | null> {
-    await this.manifestRegistry.ready
-    return this.manifestRegistry
-      .getRunner(manifestId)
-      .runLoginProbe<T>(undefined, MANIFEST_RUN_OPTIONS)
+    const runner = await this.manifestRegistry.getRunner(manifestId)
+    return runner.runLoginProbe<T>(undefined, MANIFEST_RUN_OPTIONS)
   }
 
   // Resolves whether a manifest-driven source needs a login/cookie action so
@@ -327,9 +313,8 @@ export class ProviderService {
   // the popup can render the catalog section (registered manifests the user
   // has no config for) without bundling the manifest set itself.
   async listManifests(locale?: string): Promise<ProviderManifestList> {
-    await this.manifestRegistry.ready
     return {
-      manifests: this.manifestRegistry.listManifests(locale),
+      manifests: await this.manifestRegistry.listManifests(locale),
       lastCheckedAt: await this.manifestRegistry.getLastCheckedAt(),
     }
   }
@@ -339,9 +324,6 @@ export class ProviderService {
       return this.onInstalled(details.reason).catch((e) => {
         this.logger.error('Install handling failed:', e)
       })
-    })
-    this.manifestRegistry.ready.catch((e) => {
-      this.logger.error('Failed to load manifests:', e)
     })
   }
 
@@ -379,13 +361,11 @@ export class ProviderService {
   // locked the seed flag, or a restored pre-manifest backup), so a name the
   // user sets later is never touched.
   async localizeLegacyBuiltinNames(): Promise<void> {
-    await this.manifestRegistry.ready
     const { lang } = await this.extensionOptions.get()
-    const names = new Map(
-      this.manifestRegistry
-        .listManifests(toManifestLocale(lang))
-        .map((m) => [m.id, m.name])
+    const manifests = await this.manifestRegistry.listManifests(
+      toManifestLocale(lang)
     )
+    const names = new Map(manifests.map((m) => [m.id, m.name]))
     const configs = await this.providerConfigService.getAll()
     const localized = localizeLegacyBuiltinNames(configs, names)
     if (localized !== configs) {
@@ -413,37 +393,39 @@ export class ProviderService {
   // manual via the Updates list. Records the check only on a real sync, so
   // "checked Nm ago" never advances on a bare detection. Returns how the
   // catalog index resolved.
-  async syncCatalog(): Promise<CatalogSyncResult> {
-    const result = await this.manifestRegistry.update()
-    if (result === 'synced') {
-      // update() just reached the index, so a failure here means it died
-      // mid-sync; skip the best-effort auto-apply rather than fail the sync.
-      const pending = await this.manifestRegistry
-        .getPendingUpdates()
-        .catch((e) => {
-          this.logger.warn('Failed to detect pending updates mid-sync:', e)
-          return []
-        })
-      const configs = await this.providerConfigService.getAll()
-      const installed = new Set(configs.map((config) => config.manifestId))
-      const uninstalled = pending
-        .filter((update) => !installed.has(update.manifestId))
-        .map((update) => update.manifestId)
-      if (uninstalled.length > 0) {
-        try {
-          await this.manifestRegistry.applyUpdates(uninstalled)
-        } catch (e) {
-          // Best-effort: a failed background apply retries next sync and must
-          // not block recording the check or the rest of the refresh.
-          this.logger.warn('Failed to auto-apply catalog updates:', e)
+  syncCatalog(): Promise<CatalogSyncResult> {
+    return this.manifestRegistry.batchChanges(async () => {
+      const result = await this.manifestRegistry.update()
+      if (result === 'synced') {
+        // update() just reached the index, so a failure here means it died
+        // mid-sync; skip the best-effort auto-apply rather than fail the sync.
+        const pending = await this.manifestRegistry
+          .getPendingUpdates()
+          .catch((e) => {
+            this.logger.warn('Failed to detect pending updates mid-sync:', e)
+            return []
+          })
+        const configs = await this.providerConfigService.getAll()
+        const installed = new Set(configs.map((config) => config.manifestId))
+        const uninstalled = pending
+          .filter((update) => !installed.has(update.manifestId))
+          .map((update) => update.manifestId)
+        if (uninstalled.length > 0) {
+          try {
+            await this.manifestRegistry.applyUpdates(uninstalled)
+          } catch (e) {
+            // Best-effort: a failed background apply retries next sync and must
+            // not block recording the check or the rest of the refresh.
+            this.logger.warn('Failed to auto-apply catalog updates:', e)
+          }
         }
+        await this.manifestRegistry.recordChecked()
       }
-      await this.manifestRegistry.recordChecked()
-    }
-    // The registry holds the bundled manifests from startup, so an unusable
-    // catalog still seeds working sources instead of an empty list.
-    await this.seedDefaultProviders()
-    return result
+      // The registry holds the bundled manifests from startup, so an unusable
+      // catalog still seeds working sources instead of an empty list.
+      await this.seedDefaultProviders()
+      return result
+    })
   }
 
   // syncCatalog can run concurrently (install, alarm, popup refresh) and the
@@ -472,13 +454,11 @@ export class ProviderService {
       await this.providerConfigService.markSeeded()
       return
     }
-    await this.manifestRegistry.ready
     const { lang } = await this.extensionOptions.get()
-    const names = new Map(
-      this.manifestRegistry
-        .listManifests(toManifestLocale(lang))
-        .map((m) => [m.id, m.name])
+    const manifests = await this.manifestRegistry.listManifests(
+      toManifestLocale(lang)
     )
+    const names = new Map(manifests.map((m) => [m.id, m.name]))
     const configs: ProviderConfig[] = []
     for (const entry of AUTO_IMPORT_PROVIDERS) {
       const name = names.get(entry.manifestId)
@@ -498,8 +478,7 @@ export class ProviderService {
     manifestId: string,
     locale?: string
   ): Promise<ProviderManifestSpec> {
-    await this.manifestRegistry.ready
-    const { manifest } = this.manifestRegistry.getRunner(manifestId)
+    const { manifest } = await this.manifestRegistry.getRunner(manifestId)
     const display = getDisplayStrings(manifest, locale)
     return {
       name: display.name,

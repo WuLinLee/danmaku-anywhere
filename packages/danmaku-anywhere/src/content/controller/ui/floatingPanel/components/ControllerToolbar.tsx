@@ -37,7 +37,23 @@ export const ControllerToolbar = () => {
   const toast = useToast.use.toast()
   const danmakuOptionsService = useInjectService(DanmakuOptionsService)
 
-  const episode = episodes?.length === 1 ? episodes[0] : undefined
+  function describeMounted() {
+    if (!episodes || episodes.length === 0) {
+      return t('infoPanel.state.idle', 'No danmaku mounted')
+    }
+    if (episodes.length === 1) {
+      return episodeToString(episodes[0])
+    }
+    return t(
+      'danmaku.alert.mountedMultiple',
+      'Mounted {{count}} selected danmaku',
+      {
+        count: episodes.length,
+      }
+    )
+  }
+
+  const manualTitle = describeMounted()
 
   const handleRestoreDefaults = () => {
     dialog.confirm({
@@ -124,11 +140,13 @@ export const ControllerToolbar = () => {
           </Box>
         </Fade>
         {activeConfig.mode === 'manual' ? (
-          episode && (
-            <Typography noWrap title={episodeToString(episode)}>
-              {episodeToString(episode)}
-            </Typography>
-          )
+          <Typography
+            noWrap
+            title={manualTitle}
+            sx={{ opacity: episodes?.length ? 1 : 0.8 }}
+          >
+            {manualTitle}
+          </Typography>
         ) : (
           <>
             <Typography

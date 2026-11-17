@@ -1,6 +1,7 @@
 import { ChevronLeft } from '@mui/icons-material'
 import { AppBar, IconButton, Toolbar, Typography } from '@mui/material'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { useGoBack } from '../hooks/useGoBack'
 
@@ -19,11 +20,17 @@ export const OptionsPageToolBar = ({
   sticky = false,
   onGoBack,
 }: OptionsToolbarProps) => {
-  // TODO: conditional use of hook
-  const goBack = onGoBack ?? useGoBack()
+  const defaultGoBack = useGoBack()
+  const goBack = onGoBack ?? defaultGoBack
+  const { t } = useTranslation()
 
   const defaultLeftElement = (
-    <IconButton edge="start" color="inherit" onClick={goBack}>
+    <IconButton
+      edge="start"
+      color="inherit"
+      onClick={goBack}
+      aria-label={t('common.back', 'Back')}
+    >
       <ChevronLeft />
     </IconButton>
   )

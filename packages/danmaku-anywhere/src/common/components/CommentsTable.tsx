@@ -1,10 +1,10 @@
-import type { CommentEntity } from '@danmaku-anywhere/danmaku-converter'
-import { parseCommentEntityP } from '@danmaku-anywhere/danmaku-converter'
 import {
   compile,
   type Decision,
   STAGE_DURATION_MS,
 } from '@danmaku-anywhere/danmaku-engine'
+import type { CommentEntity } from '@danmaku-anywhere/danmaku-model'
+import { parseCommentEntityP } from '@danmaku-anywhere/danmaku-model'
 import { ContentCopy, FilterList, Sync } from '@mui/icons-material'
 import {
   Box,
@@ -65,14 +65,14 @@ function chipFor(
       }
     case 'whitelist':
       return {
-        label: t('danmaku.disposition.whitelist', 'White list'),
+        label: t('danmaku.disposition.whitelist', 'Whitelist'),
         color: 'info',
       }
     case 'head':
       return {
         label: t(
           'danmaku.disposition.collapseHead',
-          'Collapse head: {{label}} ×{{count}}',
+          'Shown as {{label}} ×{{count}}',
           { label: decision.label, count: decision.finalCount }
         ),
         color: 'secondary',

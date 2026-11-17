@@ -5,6 +5,7 @@ import { DraggableList } from '@/common/components/DraggableList'
 import { ListItemPrimaryStack } from '@/common/components/ListItemPrimaryStack'
 import { DrilldownMenu } from '@/common/components/Menu/DrilldownMenu'
 import { localizedAiProviderType } from '@/common/options/aiProviderConfig/AiProviderType'
+import { aiProviderDisplayName } from '@/common/options/aiProviderConfig/aiProviderDisplayName'
 import { BUILT_IN_AI_PROVIDER_ID } from '@/common/options/aiProviderConfig/constant'
 import type { AiProviderConfig } from '@/common/options/aiProviderConfig/schema'
 import {
@@ -29,7 +30,7 @@ export const AiProviderConfigList = ({
 
   const renderItem = (config: AiProviderConfig) => {
     return (
-      <ListItemPrimaryStack text={config.name}>
+      <ListItemPrimaryStack text={aiProviderDisplayName(config)}>
         <Chip
           label={localizedAiProviderType(config.provider)}
           size="small"
@@ -43,12 +44,18 @@ export const AiProviderConfigList = ({
     <DraggableList<AiProviderConfig>
       items={configs}
       onEdit={onEdit}
+      clickable={(config) => config.id !== BUILT_IN_AI_PROVIDER_ID}
       onReorder={(sourceIndex, destinationIndex) => {
         reorder.mutate({ sourceIndex, destinationIndex })
       }}
       renderPrimary={renderItem}
       renderSecondary={(config) =>
-        config.provider === 'built-in' ? '' : config.settings.baseUrl
+        config.provider === 'built-in'
+          ? t(
+              'ai.builtInHint',
+              'Provided by Danmaku Anywhere, nothing to set up.'
+            )
+          : config.settings.baseUrl
       }
       renderSecondaryAction={(config) => (
         <>

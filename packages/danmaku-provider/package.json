@@ -1,10 +1,14 @@
 {
   "name": "@danmaku-anywhere/danmaku-provider",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "",
   "author": "Mr-Quin",
-  "repository": "https://github.com/Mr-Quin/danmaku-anywhere",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Danmaku-Anywhere/danmaku-anywhere",
+    "directory": "packages/danmaku-provider"
+  },
   "license": "MIT",
   "type": "module",
   "main": "src/index.js",
@@ -38,10 +42,6 @@
       "types": "./src/providers/genAi/index.d.ts",
       "default": "./src/providers/genAi/index.js"
     },
-    "./kazumi": {
-      "types": "./src/providers/kazumi/index.d.ts",
-      "default": "./src/providers/kazumi/index.js"
-    },
     "./config": {
       "types": "./src/providers/config/index.d.ts",
       "default": "./src/providers/config/index.js"
@@ -58,7 +58,7 @@
   "scripts": {
     "test": "vitest run",
     "protobuf:compile": "pbjs -t static-module -w es6 -o src/protobuf/protobuf.js src/protobuf/definition/bilibili.dm.proto && pbts -o src/protobuf/protobuf.d.ts src/protobuf/protobuf.js",
-    "build": "pnpm protobuf:compile && tsgo",
+    "build": "pnpm protobuf:compile && tsgo && copyfiles src/protobuf/protobuf.js src/protobuf/protobuf.d.ts dist",
     "lint": "tsgo && biome check --fix",
     "lint:ci": "biome ci",
     "type-check": "tsgo --noEmit",
@@ -66,8 +66,7 @@
     "openapi-ts": "openapi-ts"
   },
   "dependencies": {
-    "@danmaku-anywhere/danmaku-converter": "workspace:*",
-    "@danmaku-anywhere/result": "workspace:*",
+    "@danmaku-anywhere/danmaku-model": "workspace:^",
     "protobufjs": "^8.8.0",
     "zod": "^4.6.5"
   },

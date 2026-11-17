@@ -1,4 +1,4 @@
-import type { CustomSeason, Season } from '@danmaku-anywhere/danmaku-converter'
+import type { CustomSeason, Season } from '@danmaku-anywhere/danmaku-model'
 import type { ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDeleteSeason } from '@/common/anime/queries/useDeleteSeason'
@@ -10,6 +10,8 @@ import { useBookmarksSuspense } from '@/common/bookmark/queries/useBookmarks'
 import { useDialog } from '@/common/components/Dialog/dialogStore'
 import { useDeleteEpisode } from '@/common/danmaku/queries/useDeleteEpisode'
 import { isCustomSeason } from '@/common/danmaku/utils'
+import { seasonActions } from '@/common/providers/seasonActions'
+import { useSourceCapabilities } from '@/common/providers/useSourceCapabilities'
 import { useExportDanmaku } from '@/popup/hooks/useExportDanmaku'
 import { useExportXml } from '@/popup/hooks/useExportXml'
 import { useDanmakuTreeContext } from '../DanmakuTreeContext'
@@ -18,13 +20,11 @@ import { SeasonContextMenuPure } from './SeasonContextMenuPure'
 interface SeasonContextMenuContainerProps {
   season: Season | CustomSeason
   itemId: string
-  orphaned?: boolean
 }
 
 export const SeasonContextMenuContainer = ({
   season,
   itemId,
-  orphaned,
 }: SeasonContextMenuContainerProps): ReactElement => {
   const { t } = useTranslation()
   const { contextMenu, setContextMenu } = useDanmakuTreeContext()
@@ -45,6 +45,9 @@ export const SeasonContextMenuContainer = ({
   const isBookmarked = !!bookmark
 
   const dialog = useDialog()
+  const source = useSourceCapabilities(
+    isCustomSeason(season) ? undefined : season.providerConfigId
+  )
 
   const handleExport = () => {
     if (!isCustomSeason(season)) {
@@ -75,7 +78,7 @@ export const SeasonContextMenuContainer = ({
       title: t('common.confirmDeleteTitle', 'Confirm delete'),
       content: t(
         'danmakuPage.confirmDeleteMessage',
-        'Are you sure to delete the selected Danmaku?'
+        'Delete the selected danmaku?'
       ),
       confirmText: t('common.delete', 'Delete'),
       onConfirm: async () => {
@@ -117,7 +120,7 @@ export const SeasonContextMenuContainer = ({
       isExporting={exportXml.isPending || exportBackup.isPending}
       onRefresh={() => refreshSeason.mutate(season.id)}
       isRefreshing={refreshSeason.isPending}
-      orphaned={orphaned}
+      actions={seasonActions(source)}
       bookmarked={isBookmarked}
       onBookmarkToggle={handleBookmarkToggle}
       onBookmarkRefresh={handleBookmarkRefresh}

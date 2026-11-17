@@ -1,5 +1,5 @@
 import { Badge, Tab } from '@mui/material'
-import { match } from 'ts-pattern'
+import { useTranslation } from 'react-i18next'
 
 import { SidebarTabs } from '@/common/components/SidebarTabs'
 import { useExtensionOptions } from '@/common/options/extensionOptions/useExtensionOptions'
@@ -9,7 +9,8 @@ import { PopupTab, usePopup } from '@/content/controller/store/popupStore'
 import { routes } from '@/content/controller/ui/router/routes'
 
 export const PanelTabs = () => {
-  const { tab, setTab } = usePopup()
+  const { t } = useTranslation()
+  const { tab, setTab, selection } = usePopup()
   const { data: options } = useExtensionOptions()
   const activeConfig = useActiveConfig()
 
@@ -17,24 +18,24 @@ export const PanelTabs = () => {
     setTab(value)
   }
 
-  const tabs = match(tab)
-    .with(PopupTab.Selector, () => {
-      return routes.filter((route) => route.tab === PopupTab.Selector)
-    })
-    .otherwise(() => {
-      return routes.filter((route) => {
-        if (route.tab === PopupTab.Selector) return false
-        if (route.tab === PopupTab.Debug) {
-          return options.debug
-        }
-        return true
-      })
-    })
+  const tabs = routes.filter((route) => {
+    if (route.tab === PopupTab.Selector) {
+      return selection !== undefined
+    }
+    if (route.tab === PopupTab.Debug) {
+      return options.debug
+    }
+    return true
+  })
 
   const isIncomplete = isConfigIncomplete(activeConfig)
 
   return (
-    <SidebarTabs value={tab} onChange={handleTabChange} aria-label="Popup">
+    <SidebarTabs
+      value={tab}
+      onChange={handleTabChange}
+      aria-label={t('common.danmakuAnywhere', 'Danmaku Anywhere')}
+    >
       {tabs.map((route) => {
         const icon =
           route.tab === PopupTab.Policy && isIncomplete ? (

@@ -1,11 +1,16 @@
-import type { CommentEntity } from '@danmaku-anywhere/danmaku-converter'
+import type { CommentEntity } from '@danmaku-anywhere/danmaku-model'
 import { inject, injectable } from 'inversify'
 import { type ILogger, LoggerSymbol } from '@/common/Logger'
 import { DanmakuOptionsService } from '@/common/options/danmakuOptions/service'
+import { isInfoPanelEnabled } from '@/common/options/extensionOptions/infoPanel'
+import type { ExtensionOptions } from '@/common/options/extensionOptions/schema'
 import { ExtensionOptionsService } from '@/common/options/extensionOptions/service'
 import { createRpcServer } from '@/common/rpc/server'
 import { playerRpcClient } from '@/common/rpcClient/background/client'
-import type { PlayerRelayCommands } from '@/common/rpcClient/background/types'
+import type {
+  ControllerSession,
+  PlayerRelayCommands,
+} from '@/common/rpcClient/background/types'
 import { createPopoverRoot } from '@/content/common/host/createPopoverRoot'
 import { injectCss } from '@/content/common/injectCss'
 import danmakuComponentCss from '@/content/player/components/DanmakuComponent.css?inline'
@@ -20,6 +25,7 @@ import { OcclusionEntryDeriver } from '@/content/player/infoPanel/occlusionEntry
 import infoPanelCss from '@/content/player/infoPanel/PlayerInfoPanel.css?inline'
 import { buildSakuraCssVars } from '@/content/player/infoPanel/sakuraCssVars'
 import { createPipWindow, moveElement } from '@/content/player/pipUtils'
+import { PlayerDanmakuState } from '@/content/player/playerDanmakuState'
 import { VideoEventService } from '@/content/player/videoEvent/VideoEvent.service'
 import { VideoNodeObserverService } from '@/content/player/videoObserver/VideoNodeObserver.service'
 import { VideoSkipService } from '@/content/player/videoSkip/VideoSkip.service'
@@ -28,6 +34,7 @@ import { reparentPopover } from '../common/reparentPopover'
 interface StartContext {
   frameId: number
   query: string
+  session: ControllerSession
   sendPlayerReady: () => void
 }
 
@@ -66,6 +73,7 @@ export class PlayerCommandHandler {
   async start(ctx: StartContext) {
     this.frameId = ctx.frameId
     this.sendPlayerReady = ctx.sendPlayerReady
+    this.danmakuState.adopt(ctx.session)
 
     await this.setupDom()
     this.wireLifecycleEvents()
@@ -165,15 +173,10 @@ export class PlayerCommandHandler {
     })
   }
 
-  private applyExtensionOptions(options: {
-    playerOptions: {
-      showSkipButton: boolean
-      showDanmakuTimeline: boolean
-      enableFullscreenInteraction: boolean
-    }
-    infoPanel: { enabled: boolean }
-  }) {
-    this.infoPanel.setEnabled(options.infoPanel.enabled)
+  private applyExtensionOptions(
+    options: Pick<ExtensionOptions, 'playerOptions' | 'infoPanel'>
+  ) {
+    this.infoPanel.setEnabled(isInfoPanelEnabled(options.infoPanel))
     if (options.playerOptions.showSkipButton) {
       this.videoSkip.enable()
     } else {
@@ -270,29 +273,21 @@ export class PlayerCommandHandler {
   private createRpcServer() {
     const server = createRpcServer<PlayerRelayCommands>(
       {
-        'relay:command:start': async ({ data: query }) => {
-          // Already started — idempotent
-          this.manager.start(query)
+        'relay:command:start': async ({ data: { query, session } }) => {
+          if (this.danmakuState.adopt(session)) {
+            this.manager.start(query)
+          }
         },
-        'relay:command:mount': async ({ data: comments }) => {
-          this.mount(comments)
-          return true
-        },
-        'relay:command:unmount': async () => {
-          this.unmount()
-          return true
+        'relay:command:apply': async ({ data }) => {
+          this.danmakuState.apply(data)
         },
         'relay:command:seek': async ({ data: time }) => {
           this.manager.seek(time)
         },
-        'relay:command:show': async ({ data: show }) => {
-          if (show) {
-            this.manager.show()
-          } else {
-            this.manager.hide()
+        'relay:command:controllerReady': async ({ data: { session } }) => {
+          if (!this.danmakuState.adopt(session)) {
+            return
           }
-        },
-        'relay:command:controllerReady': async () => {
           this.logger.debug('Controller ready, re-sending playerReady')
           this.sendPlayerReady()
         },
@@ -329,6 +324,22 @@ export class PlayerCommandHandler {
 
     server.listen(chrome.runtime.onMessage)
   }
+
+  private readonly danmakuState = new PlayerDanmakuState({
+    mount: (comments) => {
+      this.mount(comments)
+    },
+    unmount: () => {
+      this.unmount()
+    },
+    setVisible: (visible) => {
+      if (visible) {
+        this.manager.show()
+      } else {
+        this.manager.hide()
+      }
+    },
+  })
 
   private mount(comments: CommentEntity[]) {
     this.manager.mount(comments)

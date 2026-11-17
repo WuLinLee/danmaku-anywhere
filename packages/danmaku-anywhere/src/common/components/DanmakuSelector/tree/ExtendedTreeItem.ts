@@ -3,15 +3,15 @@ import type {
   EpisodeStub,
   GenericEpisodeLite,
   Season,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import type { TreeViewDefaultItemModelProperties } from '@mui/x-tree-view/models'
 
 interface SeasonTreeItem extends TreeViewDefaultItemModelProperties {
   kind: 'season'
   data: Season | CustomSeason
   providerName?: string
-  // True when the season's provider config has been deleted: the season stays
-  // viewable, but refresh is blocked since there is no source to re-fetch from.
+  // True when the season's provider config has been deleted. The season stays
+  // viewable with a badge, but its bookmark stubs are dropped.
   orphaned?: boolean
   bookmarked?: boolean
   children?: ExtendedTreeItem[]
@@ -20,7 +20,6 @@ interface SeasonTreeItem extends TreeViewDefaultItemModelProperties {
 interface EpisodeTreeItem extends TreeViewDefaultItemModelProperties {
   kind: 'episode'
   data: GenericEpisodeLite
-  orphaned?: boolean
   children?: ExtendedTreeItem[]
 }
 

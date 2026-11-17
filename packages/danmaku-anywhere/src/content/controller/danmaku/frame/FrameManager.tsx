@@ -4,7 +4,6 @@ import { useToast } from '@/common/components/Toast/toastStore'
 import { IS_STANDALONE_RUNTIME } from '@/common/environment/isStandalone'
 import { uiContainer } from '@/common/ioc/uiIoc'
 import { Logger } from '@/common/Logger'
-import { i18n } from '@/common/localization/i18n'
 import { useExtensionOptions } from '@/common/options/extensionOptions/useExtensionOptions'
 import { createRpcServer } from '@/common/rpc/server'
 import { playerRpcClient } from '@/common/rpcClient/background/client'
@@ -15,57 +14,23 @@ import type {
 import { reparentPopover } from '@/content/common/reparentPopover'
 import { CONTROLLER_ROOT_ID } from '@/content/controller/common/constants/rootId'
 import { useActiveConfig } from '@/content/controller/common/context/useActiveConfig'
-import { useUnmountDanmaku } from '@/content/controller/common/hooks/useUnmountDanmaku'
+import {
+  CONTROLLER_SESSION,
+  syncFrame,
+  unmountQuietly,
+} from '@/content/controller/common/danmakuCommands'
 import { FrameRegistry } from '@/content/controller/danmaku/frame/FrameRegistry.service'
 import { selectBestFrame } from '@/content/controller/danmaku/frame/selectBestFrame'
 import { useMigrateDanmaku } from '@/content/controller/danmaku/frame/useMigrateDanmaku'
 import { usePreloadNextEpisode } from '@/content/controller/danmaku/frame/usePreloadNextEpisode'
 import { getLatestPipelineEntry } from '@/content/controller/danmaku/panelState/latestPipelineEntry'
+import { panelEntryForFrame } from '@/content/controller/danmaku/panelState/panelEntryForFrame'
 import { useStore } from '@/content/controller/store/store'
 import type { OcclusionStatus } from '@/content/player/occlusion/Occlusion.types'
+import { occlusionStatusText } from '@/content/player/occlusion/occlusionStatusText'
 
 const logger = Logger.sub('[FrameManager]')
 const frameRegistry = uiContainer.get(FrameRegistry)
-
-function occlusionStatusText(reason: OcclusionStatus['reason']): string {
-  switch (reason) {
-    case 'downloading':
-      return i18n.t(
-        'stylePage.occlusionStatus.downloading',
-        'Downloading the anime occlusion model. This happens once and may take a while.'
-      )
-    case 'taint':
-      return i18n.t(
-        'stylePage.occlusionError.taint',
-        'Occlusion turned off: this video is protected (cross-origin or DRM) and cannot be read.'
-      )
-    case 'unreadable':
-      return i18n.t(
-        'stylePage.occlusionError.unreadable',
-        "Occlusion turned off: the extension could not read this video's frames. The site may be blocking the extra request."
-      )
-    case 'webgpu':
-      return i18n.t(
-        'stylePage.occlusionError.webgpu',
-        'The anime occlusion model needs a WebGPU-capable browser. Switch to the People model or update your browser.'
-      )
-    case 'segment':
-      return i18n.t(
-        'stylePage.occlusionError.segment',
-        'Occlusion ran but produced no result.'
-      )
-    case 'unavailable':
-      return i18n.t(
-        'stylePage.occlusionError.unavailable',
-        'Occlusion is not supported on this video.'
-      )
-    case 'init':
-      return i18n.t(
-        'stylePage.occlusionError.init',
-        'Failed to load the occlusion model.'
-      )
-  }
-}
 
 export const FrameManager = () => {
   const { toast } = useToast()
@@ -78,7 +43,6 @@ export const FrameManager = () => {
 
   const { updateFrame } = useStore.use.frame()
 
-  const unmountDanmaku = useUnmountDanmaku()
   const { preloadNext, canLoadNext } = usePreloadNextEpisode()
 
   useMigrateDanmaku()
@@ -125,15 +89,11 @@ export const FrameManager = () => {
   )
 
   const videoRemovedHandler = useEventCallback((frameId: number) => {
-    const activeFrame = useStore.getState().frame.activeFrame
-    if (activeFrame?.frameId === frameId) {
-      if (activeFrame.mounted) {
-        unmountDanmaku.mutate(frameId)
-      }
+    if (useStore.getState().danmaku.mountedFrameId === frameId) {
+      void unmountQuietly()
     }
     updateFrame(frameId, {
       hasVideo: false,
-      mounted: false,
       videoInfo: undefined,
     })
     reEvaluateActiveFrame()
@@ -155,9 +115,8 @@ export const FrameManager = () => {
     }
     try {
       await preloadNext()
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      toast.error('Failed to preload next episode: ' + message)
+    } catch (error) {
+      logger.debug('Failed to preload the next episode', error)
     }
   })
 
@@ -184,10 +143,11 @@ export const FrameManager = () => {
           })
 
           await playerRpcClient.player['relay:command:start']({
-            data: config.mediaQuery,
+            data: { query: config.mediaQuery, session: CONTROLLER_SESSION },
             frameId,
           })
           updateFrame(frameId, { started: true })
+          await syncFrame(frameId)
         },
         'relay:event:playerUnload': async ({ frameId }) => {
           frameRegistry.unregisterFrame(frameId)
@@ -213,8 +173,13 @@ export const FrameManager = () => {
           handleOcclusionStatus(data)
         },
         'relay:event:requestPanelState': async ({ frameId }) => {
+          const entry = panelEntryForFrame(
+            getLatestPipelineEntry(),
+            frameId,
+            useStore.getState().frame.activeFrame?.frameId
+          )
           void playerRpcClient.player['relay:command:syncPanelState'](
-            { frameId, data: getLatestPipelineEntry() },
+            { frameId, data: entry },
             { optional: true, silent: true }
           )
         },
@@ -234,7 +199,7 @@ export const FrameManager = () => {
   useEffect(() => {
     // Players that loaded before the controller re-send playerReady on this.
     void playerRpcClient.player['relay:command:controllerReady'](
-      { frameId: 0 },
+      { frameId: 0, data: { session: CONTROLLER_SESSION } },
       { optional: true }
     )
   }, [])

@@ -1,7 +1,7 @@
 import type {
   CommentEntity,
   EpisodeStub,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import { mockLoginProbes } from '../../network/loginProbes'
 import { Popup } from '../../pom/Popup'
 import {
@@ -52,12 +52,12 @@ test('deleting a provider orphans its season but keeps it viewable', async ({
 
   const popup = await Popup.open(page, extensionId, '/mount')
   let seasonItem = await popup.mount.waitForSeason(season.id)
-  await expect(seasonItem).toContainText(/\+1/)
+  await expect(popup.mount.seasonEpisodeCount(season.id)).toHaveText('1/2')
 
   await Popup.open(page, extensionId, '/providers')
-  await popup.providers.deleteProvider('Bilibili')
+  await popup.providers.deleteProvider(/Bilibili|B站/)
   await popup.dialog.confirm()
-  await popup.toast.expectSuccess(/Provider deleted|弹幕源已删除/)
+  await popup.toast.expectSuccess(/Source deleted|弹幕源已删除/)
 
   expect((await da.season.get(season.id))?.id).toBe(season.id)
   expect((await da.episode.get(ep.id))?.commentCount).toBe(COMMENTS.length)
@@ -66,7 +66,7 @@ test('deleting a provider orphans its season but keeps it viewable', async ({
   await Popup.open(page, extensionId, '/mount')
   seasonItem = await popup.mount.waitForSeason(season.id)
   await expect(popup.mount.seasonOrphanedBadge(season.id)).toBeVisible()
-  await expect(seasonItem).not.toContainText(/\+\d+/)
+  await expect(popup.mount.seasonEpisodeCount(season.id)).toHaveText('1')
 
   await popup.mount.expandSeason(season.id)
   await expect(popup.mount.episodeCommentCount(ep.id)).toHaveText(

@@ -2,7 +2,8 @@ import {
   DanmakuSourceType,
   LEGACY_MACCMS_ID,
   PROVIDER_TO_BUILTIN_ID,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
+import type { ManifestRunner } from '@mr-quin/dango'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { backgroundContainerModule } from '@/background/ioc'
 import { LoggerSymbol } from '@/common/Logger'
@@ -39,7 +40,7 @@ const mockRunner = {
 }
 
 const getRunner = vi.fn<ManifestRegistry['getRunner']>(
-  () => mockRunner as unknown as ReturnType<ManifestRegistry['getRunner']> // lint-specs-allow-cast: ManifestRunner (from @mr-quin/dango) has private fields; double only implements the methods this suite exercises
+  async () => mockRunner as unknown as ManifestRunner // lint-specs-allow-cast: ManifestRunner (from @mr-quin/dango) has private fields; double only implements the methods this suite exercises
 )
 
 vi.mock('./MacCmsProviderService', () => ({

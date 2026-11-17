@@ -3,7 +3,7 @@ import type {
   EpisodeMeta,
   EpisodeStub,
   WithSeason,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import type { GetCommentQuery } from '@danmaku-anywhere/danmaku-provider/ddp'
 
 export type EpisodeFetchBySeasonParams = {
@@ -88,6 +88,9 @@ export type DanmakuImportResult = {
         }
       }
   )[]
+  alreadyImported: {
+    title: string
+  }[]
   error: {
     title: string
     message: string

@@ -9,7 +9,7 @@ import { applyProfile } from '../../setup/profile'
  * A season belongs to the config that fetched it, so editing that config never
  * detaches its seasons. Renaming a self-hosted instance and moving it to
  * another host through the editor keeps its season attached in the mount tree
- * (no orphan badge, refresh still offered, chip shows the new name). A season
+ * (no orphan badge, follow still offered, chip shows the new name). A season
  * whose config disappears from storage turns orphaned but stays visible with
  * its follow, so it can still be unfollowed.
  */
@@ -65,7 +65,7 @@ test('renaming a self-hosted source and moving it to another host keeps its seas
     'https://other-host.invalid/api'
   )
   await popup.providers.save()
-  await popup.toast.expectSuccess(/Provider updated|弹幕源已更新/)
+  await popup.toast.expectSuccess(/Source updated|弹幕源已更新/)
 
   const mount = await Popup.open(page, extensionId, '/mount')
   const seasonItem = await mount.mount.waitForSeason(seasonId)
@@ -75,7 +75,7 @@ test('renaming a self-hosted source and moving it to another host keeps its seas
   ).toBeVisible()
 
   await mount.mount.openContextMenu(seasonItem)
-  await expect(mount.mount.contextMenuItem('refresh')).toBeEnabled()
+  await expect(mount.mount.contextMenuItem('bookmarkAdd')).toBeEnabled()
 
   const season = await da.season.get(seasonId)
   expect(season?.providerConfigId).toBe(selfHosted.id)
@@ -99,14 +99,14 @@ test('a followed season with no downloaded episodes stays visible when its confi
   ])
 
   const popup = await Popup.open(page, extensionId, '/mount')
-  const seasonItem = await popup.mount.waitForSeason(seasonId)
+  await popup.mount.waitForSeason(seasonId)
   await expect(popup.mount.seasonOrphanedBadge(seasonId)).toBeHidden()
-  await expect(seasonItem).toContainText(/\+1/)
+  await expect(popup.mount.seasonEpisodeCount(seasonId)).toHaveText('0/1')
 
   await da.providerConfig.set([])
 
   const reopened = await Popup.open(page, extensionId, '/mount')
-  const orphanItem = await reopened.mount.waitForSeason(seasonId)
+  await reopened.mount.waitForSeason(seasonId)
   await expect(reopened.mount.seasonOrphanedBadge(seasonId)).toBeVisible()
-  await expect(orphanItem).not.toContainText(/\+\d+/)
+  await expect(reopened.mount.seasonEpisodeCount(seasonId)).toBeHidden()
 })

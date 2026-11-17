@@ -8,17 +8,22 @@ import {
   stripHtml,
   type WithSeason,
   zCommentEntity,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import type { ManifestRunner, RunOptions } from '@mr-quin/dango'
 import type { z } from 'zod'
 import type { DanmakuFetchByMeta } from '@/common/danmaku/dto'
 import type { ILogger } from '@/common/Logger'
+import {
+  capabilitiesFromManifest,
+  MANIFEST_MISSING,
+  type SourceStatus,
+} from '@/common/providers/sourceCapabilities'
 import { findEpisodeByNumber } from './common/findEpisodeByNumber'
 import type {
-  IDanmakuProvider,
   OmitSeasonId,
   ParseUrlResult,
   SeasonSearchParams,
+  SourceProvider,
 } from './IDanmakuProvider'
 import type { ManifestRegistry } from './ManifestRegistry'
 import { resolveManifestInputs } from './manifestInputs'
@@ -109,7 +114,7 @@ export const DANMAKU_RUN_OPTIONS: RunOptions = {
   continueOnError: true,
 }
 
-export class ManifestProviderService implements IDanmakuProvider {
+export class ManifestProviderService implements SourceProvider {
   constructor(
     private readonly config: ManifestProviderConfig,
     private readonly registry: ManifestRegistry,
@@ -126,8 +131,7 @@ export class ManifestProviderService implements IDanmakuProvider {
     }
   }
 
-  private async getRunner(): Promise<ManifestRunner> {
-    await this.registry.ready
+  private getRunner(): Promise<ManifestRunner> {
     return this.registry.getRunner(this.config.manifestId)
   }
 
@@ -140,6 +144,19 @@ export class ManifestProviderService implements IDanmakuProvider {
       this.config.configValues,
       inputs
     )
+  }
+
+  readonly kind = 'source'
+
+  async getStatus(): Promise<SourceStatus> {
+    const runner = await this.registry.findRunner(this.config.manifestId)
+    if (!runner) {
+      return { status: 'unavailable', reason: MANIFEST_MISSING }
+    }
+    return {
+      status: 'available',
+      capabilities: capabilitiesFromManifest(runner.manifest),
+    }
   }
 
   async search(params: SeasonSearchParams): Promise<SeasonInsert[]> {
@@ -162,9 +179,6 @@ export class ManifestProviderService implements IDanmakuProvider {
       seasonRemoteIds
     )
     const runner = await this.getRunner()
-    if (!runner.hasSeason()) {
-      return null
-    }
     const inputs = this.resolveInputs(runner, seasonRemoteIds)
     const row = await runner.runSeason<ManifestSearchRow | null>(
       inputs,
@@ -251,9 +265,9 @@ export class ManifestProviderService implements IDanmakuProvider {
     }
   }
 
-  // Synchronous, so the caller must await the registry's ready first.
-  canParse(url: string): boolean {
-    return this.registry.getRunner(this.config.manifestId).canParse(url)
+  async canParse(url: string): Promise<boolean> {
+    const runner = await this.getRunner()
+    return runner.canParse(url)
   }
 
   async parseUrl(url: string): Promise<ParseUrlResult | null> {

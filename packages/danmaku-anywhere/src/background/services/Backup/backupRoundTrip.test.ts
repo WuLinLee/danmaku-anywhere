@@ -23,7 +23,6 @@ import type { IOptionsServiceFactory } from '@/common/options/OptionsService/Opt
 import { OptionsService } from '@/common/options/OptionsService/OptionsService'
 import type { OptionsSchema } from '@/common/options/OptionsService/types'
 import { ProviderConfigService } from '@/common/options/providerConfig/service'
-import { ReadinessService } from '@/common/options/ReadinessService/ReadinessService'
 import { silentLogger } from '@/tests/silentLogger'
 import { ConfigStateService } from './ConfigStateService'
 
@@ -53,8 +52,7 @@ describe('backup round trip', () => {
     })
 
     const logger = silentLogger
-    const readinessService = new ReadinessService(logger)
-    readinessService.setReady()
+    const readinessService = { waitUntilReady: () => Promise.resolve() }
 
     const factory: IOptionsServiceFactory = <T extends OptionsSchema>(
       key: string,
@@ -177,6 +175,29 @@ describe('backup round trip', () => {
     const result = await configStateService.restoreState(roundTripped)
 
     expect(result.success).toBe(true)
+  })
+
+  it('keeps an unset info panel choice unset through export and restore', async () => {
+    const backup = await configStateService.getState()
+    const result = await configStateService.restoreState(
+      JSON.parse(JSON.stringify(backup))
+    )
+
+    expect(result.success).toBe(true)
+    const restored = await extensionOptionsService.get()
+    expect(restored.infoPanel).not.toHaveProperty('enabled')
+  })
+
+  it('keeps an explicit info panel choice through export and restore', async () => {
+    await extensionOptionsService.update({ infoPanel: { enabled: false } })
+
+    const backup = await configStateService.getState()
+    await extensionOptionsService.update({ infoPanel: {} })
+    await configStateService.restoreState(JSON.parse(JSON.stringify(backup)))
+
+    expect((await extensionOptionsService.get()).infoPanel).toEqual({
+      enabled: false,
+    })
   })
 
   it('restores default state with no user data seeded', async () => {

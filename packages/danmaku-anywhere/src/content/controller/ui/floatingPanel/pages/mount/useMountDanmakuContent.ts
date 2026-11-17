@@ -1,7 +1,7 @@
 import type {
   GenericEpisode,
   GenericEpisodeLite,
-} from '@danmaku-anywhere/danmaku-converter'
+} from '@danmaku-anywhere/danmaku-model'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useToast } from '@/common/components/Toast/toastStore'
@@ -23,7 +23,7 @@ export const useMountDanmakuContent = () => {
 
   const queryClient = useQueryClient()
 
-  const { mountDanmaku } = useLoadDanmaku()
+  const { mountChosen } = useLoadDanmaku()
 
   return useMutation({
     mutationFn: async (
@@ -70,7 +70,7 @@ export const useMountDanmakuContent = () => {
     },
     onSuccess: (data) => {
       toggleManualMode(true)
-      void mountDanmaku(data)
+      void mountChosen(data)
     },
     onError: (e) => {
       toast.error(
